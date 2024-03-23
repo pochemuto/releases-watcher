@@ -51,15 +51,15 @@ func main() {
 		close(tags)
 	}()
 
-	connectionString := os.Getenv("MONGODB_CONNECT_STRING")
+	connectionString := os.Getenv("PGCONNECTION")
 	if connectionString == "" {
-		log.Panicf("Provide a connection string MONGODB_CONNECT_STRING")
+		log.Panicf("Provide a connection string PGCONNECTION")
 	}
 	db, err := releaseswatcher.NewDB(connectionString)
 	if err != nil {
 		log.Panicf("Error connecting to db %v", err)
 	}
-	defer db.Disconnect(context.TODO())
+	defer db.Disconnect()
 
 	albums := make(map[releaseswatcher.Album]bool)
 	for tag := range tags {
@@ -69,6 +69,9 @@ func main() {
 		}
 		if _, present := albums[album]; !present {
 			albums[album] = true
+			if !album.IsCorrect() {
+				log.Warnf("Incorrect tag %v", tag)
+			}
 			err := db.Insert(context.TODO(), album)
 			if err != nil {
 				log.Errorf("Failed to write to db: %v", err)

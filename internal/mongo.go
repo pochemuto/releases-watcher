@@ -3,19 +3,16 @@ package releaseswatcher
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/jackc/pgx/v5"
+	// "github.com/sirupsen/logrus"
 )
 
-var log logrus.Logger
+// var log logrus.Logger
 
-const databaseName = "music"
+// const databaseName = "music"
 
 type DB struct {
-	client *mongo.Client
-	coll   *mongo.Collection
+	conn *pgx.Conn
 }
 
 type Album struct {
@@ -23,39 +20,26 @@ type Album struct {
 	Album  string `bson:"album"`
 }
 
-func (db *DB) Disconnect(ctx context.Context) error {
-	return db.client.Disconnect(ctx)
+func (a Album) IsCorrect() bool {
+	return len(a.Artist) > 0 && len(a.Album) > 0
+}
+
+func (db *DB) Disconnect() error {
+	return db.conn.Close(context.Background())
 }
 
 func (db *DB) Insert(ctx context.Context, album Album) error {
-	filter := bson.D{
-		{Key: "artist", Value: album.Artist},
-		{Key: "album", Value: album.Album},
-	}
-	update := bson.D{{
-		Key: "$set", Value: album,
-	}}
-	_, err := db.coll.UpdateOne(ctx, filter, update, options.Update().SetUpsert(true))
+	_, err := db.conn.Exec(ctx,
+		"INSERT INTO album (artist, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+		album.Artist, album.Album)
 	return err
 }
 
 func NewDB(connection string) (DB, error) {
-	var db DB
-	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(connection).SetServerAPIOptions(serverAPI)
-
-	// Create a new client and connect to the server
-	client, err := mongo.Connect(context.TODO(), opts)
+	conn, err := pgx.Connect(context.Background(), connection)
 	if err != nil {
-		panic(err)
+		return DB{}, nil
 	}
 
-	if err := client.Database(databaseName).RunCommand(context.TODO(), bson.D{{Key: "ping", Value: 1}}).Err(); err != nil {
-		return DB{}, err
-	}
-	log.Info("Pinged your deployment. You successfully connected to MongoDB!")
-
-	db.client = client
-	db.coll = client.Database(databaseName).Collection("albums")
-	return db, nil
+	return DB{conn: conn}, nil
 }
