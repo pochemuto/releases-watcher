@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
+	"os"
 	"sync"
 	"sync/atomic"
 
 	"github.com/bogem/id3v2"
+	"github.com/joho/godotenv"
 	releaseswatcher "github.com/pochemuto/releases-watcher/internal"
 	"github.com/sirupsen/logrus"
 )
@@ -14,6 +17,11 @@ const ReadWorkers = 10
 var log = logrus.New()
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	filenames := make(chan string)
 	tags := make(chan id3v2.Tag)
 
@@ -36,25 +44,37 @@ func main() {
 				}
 				tags <- *tag
 			}
-			close(tags)
 		}()
 	}
+	go func() {
+		wg.Wait()
+		close(tags)
+	}()
 
-	type Album struct {
-		artist string
-		album  string
+	connectionString := os.Getenv("MONGODB_CONNECT_STRING")
+	if connectionString == "" {
+		log.Panicf("Provide a connection string MONGODB_CONNECT_STRING")
 	}
-	albums := make(map[Album]bool)
+	db, err := releaseswatcher.NewDB(connectionString)
+	if err != nil {
+		log.Panicf("Error connecting to db %v", err)
+	}
+	defer db.Disconnect(context.TODO())
+
+	albums := make(map[releaseswatcher.Album]bool)
 	for tag := range tags {
-		album := Album{
-			artist: tag.Artist(),
-			album:  tag.Album(),
+		album := releaseswatcher.Album{
+			Artist: tag.Artist(),
+			Album:  tag.Album(),
 		}
 		if _, present := albums[album]; !present {
 			albums[album] = true
+			err := db.Insert(context.TODO(), album)
+			if err != nil {
+				log.Errorf("Failed to write to db: %v", err)
+			}
 			log.Infof("Read %d/%d %s - %s", processedCount.Load(), filesnamesCount.Load(),
-				album.artist, album.album)
+				album.Artist, album.Album)
 		}
 	}
-	wg.Wait()
 }
