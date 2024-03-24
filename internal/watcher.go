@@ -29,8 +29,8 @@ func (w Watcher) UpdateActualLibrary() error {
 		return err
 	}
 	for _, r := range releases {
-		log.Infof("Album: [%d] https://www.discogs.com/ru/%s/%d %s - %s (%v)",
-			r.Year, r.Type, r.ID, r.Artist, r.Title, r.Role)
+		log.Infof("Album: [%d] (%d) %s",
+			r.Year, r.ID, r.Title)
 	}
 	return err
 }

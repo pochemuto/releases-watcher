@@ -26,7 +26,7 @@ func main() {
 	}
 	defer db.Disconnect()
 
-	lib, err := releaseswatcher.NewLibrary(os.Getenv("DISCOGS_TOKEN"))
+	lib, err := releaseswatcher.NewLibrary(os.Getenv("DISCOGS_TOKEN"), db)
 	if err != nil {
 		log.Panicf("Library creation error %v", err)
 	}
@@ -36,7 +36,7 @@ func main() {
 	}
 	err = watcher.UpdateActualLibrary()
 	if err != nil {
-		log.Panicf("Watcher creation error: %v", err)
+		log.Panicf("Update library error: %v", err)
 	}
 	log.Info("Done")
 }
