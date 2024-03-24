@@ -9,9 +9,6 @@ import (
 	"github.com/bogem/id3v2"
 )
 
-type Tags struct {
-}
-
 func ReadID3(filepath string) (*id3v2.Tag, error) {
 	tag, err := id3v2.Open(filepath, id3v2.Options{Parse: true})
 	if err != nil {

@@ -7,10 +7,6 @@ import (
 	// "github.com/sirupsen/logrus"
 )
 
-// var log logrus.Logger
-
-// const databaseName = "music"
-
 type DB struct {
 	conn *pgx.Conn
 }
@@ -28,7 +24,7 @@ func (db *DB) Disconnect() error {
 	return db.conn.Close(context.Background())
 }
 
-func (db *DB) Insert(ctx context.Context, album Album) error {
+func (db *DB) InsertLocalAlbum(ctx context.Context, album Album) error {
 	_, err := db.conn.Exec(ctx,
 		"INSERT INTO album (artist, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
 		album.Artist, album.Album)

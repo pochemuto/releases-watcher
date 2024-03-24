@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/irlndts/go-discogs v0.3.6 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
