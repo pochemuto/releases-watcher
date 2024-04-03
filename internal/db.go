@@ -12,6 +12,9 @@ import (
 type DB struct {
 	conn *pgxpool.Pool
 }
+type discogs_cache struct {
+	DB
+}
 
 type Album struct {
 	Artist string `bson:"artist"`
@@ -39,6 +42,10 @@ func (db DB) Disconnect() {
 	db.conn.Close()
 }
 
+func (db DB) Discogs() discogs_cache {
+	return discogs_cache{db}
+}
+
 func (db DB) InsertLocalAlbum(ctx context.Context, album Album) error {
 	_, err := db.conn.Exec(ctx,
 		"INSERT INTO album (artist, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
@@ -46,7 +53,41 @@ func (db DB) InsertLocalAlbum(ctx context.Context, album Album) error {
 	return err
 }
 
-func (db DB) GetRelease(ctx context.Context, releaseID int) ([]byte, error) {
+func (db DB) GetLocalAlbums(ctx context.Context) ([]Album, error) {
+	result := make([]Album, 0)
+	scan, err := db.conn.Query(ctx, "SELECT artist, name FROM album")
+	if err != nil {
+		return nil, err
+	}
+	for scan.Next() {
+		var album Album
+		err := scan.Scan(&album.Artist, &album.Album)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, album)
+	}
+	return result, nil
+}
+
+func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
+	result := make([]string, 0)
+	scan, err := db.conn.Query(ctx, "SELECT DISTINCT artist FROM album")
+	if err != nil {
+		return nil, err
+	}
+	for scan.Next() {
+		var artist string
+		err := scan.Scan(&artist)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, artist)
+	}
+	return result, nil
+}
+
+func (db discogs_cache) GetRelease(ctx context.Context, releaseID int) ([]byte, error) {
 	row := db.conn.QueryRow(ctx,
 		"SELECT response FROM discogs.release WHERE id = $1",
 		releaseID,
@@ -62,7 +103,7 @@ func (db DB) GetRelease(ctx context.Context, releaseID int) ([]byte, error) {
 	return result, nil
 }
 
-func (db DB) SaveRelease(ctx context.Context, releaseID int, response []byte) error {
+func (db discogs_cache) SaveRelease(ctx context.Context, releaseID int, response []byte) error {
 	_, err := db.conn.Exec(ctx,
 		"INSERT INTO discogs.release (id, response) VALUES ($1, $2)",
 		releaseID, response,

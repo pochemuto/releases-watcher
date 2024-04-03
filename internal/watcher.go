@@ -24,13 +24,35 @@ func NewWatcher(root string, db DB, lib Library) (Watcher, error) {
 }
 
 func (w Watcher) UpdateActualLibrary() error {
-	releases, err := w.lib.GetReleases("The Prodigy")
+	artists, err := w.db.GetLocalArtists(context.Background())
 	if err != nil {
 		return err
 	}
-	for _, r := range releases {
-		log.Infof("Album: [%d] (%d) %s",
-			r.Year, r.ID, r.Title)
+	for i, artist := range artists {
+		log.Infof("Fetching for %s [%d of %d]", artist, i+1, len(artists))
+		releases, err := w.lib.GetReleases(artist)
+		if err != nil {
+			log.Errorf("Error when processing artist '%v': %v", artist, err)
+			continue
+		}
+		for _, r := range releases {
+			if IsAlbum(r) {
+				log.Infof("Album: [%d] [%s] (%d) %s",
+					r.Year, "Album", r.ID, r.Title)
+			}
+		}
+		for _, r := range releases {
+			if IsEP(r) {
+				log.Infof("Album: [%d] [%s] (%d) %s",
+					r.Year, "EP", r.ID, r.Title)
+			}
+		}
+		for _, r := range releases {
+			if IsSingle(r) {
+				log.Infof("Album: [%d] [%s] (%d) %s",
+					r.Year, "Single", r.ID, r.Title)
+			}
+		}
 	}
 	return err
 }
