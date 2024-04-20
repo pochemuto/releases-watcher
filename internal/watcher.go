@@ -36,19 +36,19 @@ func (w Watcher) UpdateActualLibrary() error {
 			continue
 		}
 		for _, r := range releases {
-			if IsAlbum(r) {
+			if IsAlbum(&r) {
 				log.Infof("Album: [%d] [%s] (%d) %s",
 					r.Year, "Album", r.ID, r.Title)
 			}
 		}
 		for _, r := range releases {
-			if IsEP(r) {
+			if IsEP(&r) {
 				log.Infof("Album: [%d] [%s] (%d) %s",
 					r.Year, "EP", r.ID, r.Title)
 			}
 		}
 		for _, r := range releases {
-			if IsSingle(r) {
+			if IsSingle(&r) {
 				log.Infof("Album: [%d] [%s] (%d) %s",
 					r.Year, "Single", r.ID, r.Title)
 			}

@@ -2,7 +2,9 @@ package releaseswatcher
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -87,26 +89,79 @@ func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
-func (db discogs_cache) GetRelease(ctx context.Context, releaseID int) ([]byte, error) {
-	row := db.conn.QueryRow(ctx,
-		"SELECT response FROM discogs.release WHERE id = $1",
-		releaseID,
-	)
-	var result []byte
-	err := row.Scan(&result)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+func GetCached[T any](db *DB, ctx context.Context,
+	entity string, id string, freshness time.Duration, fetcher func() (*T, error)) (*T, error) {
+	byte_fetcher := func() ([]byte, error) {
+		data, err := fetcher()
+		if err != nil {
+			return nil, err
 		}
+		return json.Marshal(data)
+	}
+
+	data, err := db.GetEntity(ctx, entity, id, freshness, byte_fetcher)
+	if err != nil {
+		return nil, err
+	}
+	result := new(T)
+	err = json.Unmarshal(data, result)
+	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (db discogs_cache) SaveRelease(ctx context.Context, releaseID int, response []byte) error {
-	_, err := db.conn.Exec(ctx,
-		"INSERT INTO discogs.release (id, response) VALUES ($1, $2)",
-		releaseID, response,
+func (db DB) GetEntity(ctx context.Context,
+	entity string, id string, freshness time.Duration, fetcher func() ([]byte, error)) ([]byte, error) {
+	row := db.conn.QueryRow(ctx,
+		"SELECT value FROM cache WHERE entity = $1 AND id = $2",
+		entity, id,
 	)
-	return err
+	var result []byte
+	err := row.Scan(&result)
+	if err != nil {
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, err
+		}
+
+		result, err = fetcher()
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = db.conn.Exec(ctx,
+			"INSERT INTO cache (entity, id, value) VALUES ($1, $2, $3)",
+			entity, id, result,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	}
+	return result, nil
 }
+
+// func (db discogs_cache) GetRelease(ctx context.Context, releaseID int) ([]byte, error) {
+// 	row := db.conn.QueryRow(ctx,
+// 		"SELECT response FROM discogs.release WHERE id = $1",
+// 		releaseID,
+// 	)
+// 	var result []byte
+// 	err := row.Scan(&result)
+// 	if err != nil {
+// 		if errors.Is(err, pgx.ErrNoRows) {
+// 			return nil, nil
+// 		}
+// 		return nil, err
+// 	}
+// 	return result, nil
+// }
+
+// func (db discogs_cache) SaveRelease(ctx context.Context, releaseID int, response []byte) error {
+// 	_, err := db.conn.Exec(ctx,
+// 		"INSERT INTO discogs.release (id, response) VALUES ($1, $2)",
+// 		releaseID, response,
+// 	)
+// 	return err
+// }
