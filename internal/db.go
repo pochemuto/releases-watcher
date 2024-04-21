@@ -23,6 +23,14 @@ type Album struct {
 	Album  string `bson:"album"`
 }
 
+type ActualAlbum struct {
+	Id     int
+	Artist string
+	Album  string
+	Year   int
+	Kind   string
+}
+
 func NewDB(connection string) (DB, error) {
 	conn, err := pgxpool.New(context.Background(), connection)
 	if err != nil {
@@ -48,37 +56,12 @@ func (db DB) Discogs() discogs_cache {
 	return discogs_cache{db}
 }
 
-func (db DB) UpdateLocalAlbums(ctx context.Context, album []Album) error {
-	log.Infof("Saving local database. Number of albums: %d", len(album))
-	tx, err := db.conn.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		tx.Rollback(ctx)
-		return err
-	}
-
-	_, err = db.conn.Exec(ctx, "DELETE FROM album")
-	if err != nil {
-		tx.Rollback(ctx)
-		return err
-	}
-	for _, a := range album {
-		err := db.InsertLocalAlbum(ctx, a)
-		if err != nil {
-			tx.Rollback(ctx)
-			return err
-		}
-	}
-
-	log.Info("Local database updated")
-	return tx.Commit(ctx)
-}
-
 func (db DB) StartUpdateAlbums(ctx context.Context) (pgx.Tx, error) {
 	tx, err := db.conn.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
-	_, err = db.conn.Exec(ctx, "DELETE FROM album")
+	_, err = tx.Exec(ctx, "DELETE FROM album")
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err
@@ -86,10 +69,31 @@ func (db DB) StartUpdateAlbums(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-func (db DB) InsertLocalAlbum(ctx context.Context, album Album) error {
-	_, err := db.conn.Exec(ctx,
+func (db DB) StartUpdateActualAlbums(ctx context.Context) (pgx.Tx, error) {
+	tx, err := db.conn.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_, err = tx.Exec(ctx, "DELETE FROM actual_album")
+	if err != nil {
+		tx.Rollback(ctx)
+		return nil, err
+	}
+	return tx, nil
+}
+
+func (db DB) InsertLocalAlbum(ctx context.Context, tx pgx.Tx, album Album) error {
+	_, err := tx.Exec(ctx,
 		"INSERT INTO album (artist, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
 		album.Artist, album.Album)
+	return err
+}
+
+func (db DB) InsertActualAlbum(ctx context.Context, tx pgx.Tx, album ActualAlbum) error {
+	_, err := tx.Exec(ctx,
+		`INSERT INTO actual_album (id, artist, name, year, kind)
+		 VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
+		album.Id, album.Artist, album.Album, album.Year, album.Kind)
 	return err
 }
 

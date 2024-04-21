@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/bogem/id3v2"
+	"github.com/irlndts/go-discogs"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,6 +30,11 @@ func (w Watcher) UpdateActualLibrary() error {
 	if err != nil {
 		return err
 	}
+	tx, err := w.db.StartUpdateActualAlbums(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Commit(context.Background())
 	for i, artist := range artists {
 		log.Tracef("Fetching for %s [%d of %d]", artist, i+1, len(artists))
 		releases, err := w.lib.GetReleases(artist)
@@ -36,26 +42,39 @@ func (w Watcher) UpdateActualLibrary() error {
 			log.Errorf("Error when processing artist '%v': %v", artist, err)
 			continue
 		}
-		for _, r := range releases {
-			if IsAlbum(&r) {
-				log.Tracef("Album: [%d] [%s] (%d) %s",
-					r.Year, "Album", r.ID, r.Title)
+		for _, release := range releases {
+			kind := getKind(release)
+			if kind == "" {
+				continue
 			}
-		}
-		for _, r := range releases {
-			if IsEP(&r) {
-				log.Tracef("Album: [%d] [%s] (%d) %s",
-					r.Year, "EP", r.ID, r.Title)
+			actualAlbum := ActualAlbum{
+				Id:     release.ID,
+				Artist: artist,
+				Album:  release.Title,
+				Year:   release.Year,
+				Kind:   kind,
 			}
-		}
-		for _, r := range releases {
-			if IsSingle(&r) {
-				log.Tracef("Album: [%d] [%s] (%d) %s",
-					r.Year, "Single", r.ID, r.Title)
+			err := w.db.InsertActualAlbum(context.Background(), tx, actualAlbum)
+			if err != nil {
+				tx.Rollback(context.Background())
+				return err
 			}
 		}
 	}
 	return err
+}
+
+func getKind(release discogs.Release) string {
+	if IsAlbum(&release) {
+		return "album"
+	}
+	if IsSingle(&release) {
+		return "single"
+	}
+	if IsEP(&release) {
+		return "EP"
+	}
+	return ""
 }
 
 func (w Watcher) UpdateLocalLibrary() error {
@@ -91,6 +110,11 @@ func (w Watcher) UpdateLocalLibrary() error {
 
 	albums := make(map[Album]bool)
 
+	tx, err := w.db.StartUpdateAlbums(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Commit(context.Background())
 	for tag := range tags {
 		album := Album{
 			Artist: tag.Artist(),
@@ -101,7 +125,7 @@ func (w Watcher) UpdateLocalLibrary() error {
 			if !album.IsCorrect() {
 				log.Warnf("Incorrect tag %v", tag)
 			}
-			err := w.db.InsertLocalAlbum(context.TODO(), album)
+			err := w.db.InsertLocalAlbum(context.TODO(), tx, album)
 			if err != nil {
 				log.Errorf("Failed to write to db: %v", err)
 			}
