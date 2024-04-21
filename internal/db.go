@@ -89,6 +89,21 @@ func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
+func GetAll[T any](db *DB, ctx context.Context,
+	entity string, freshness time.Duration) (map[string]*T, error) {
+	rows, err := db.GetAll(ctx, entity, freshness)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]*T)
+	for id, data := range rows {
+		value := new(T)
+		json.Unmarshal(data, value)
+		result[id] = value
+	}
+	return result, nil
+}
+
 func GetCached[T any](db *DB, ctx context.Context,
 	entity string, id string, freshness time.Duration, fetcher func() (*T, error)) (*T, error) {
 	byte_fetcher := func() ([]byte, error) {
@@ -107,6 +122,27 @@ func GetCached[T any](db *DB, ctx context.Context,
 	err = json.Unmarshal(data, result)
 	if err != nil {
 		return nil, err
+	}
+	return result, nil
+}
+
+func (db DB) GetAll(ctx context.Context,
+	entity string, freshness time.Duration) (map[string][]byte, error) {
+	rows, err := db.conn.Query(ctx,
+		"SELECT value, id FROM cache WHERE entity = $1", entity)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string][]byte)
+	for rows.Next() {
+		var value []byte
+		var id string
+		err = rows.Scan(&value, &id)
+		if err != nil {
+			return nil, err
+		}
+		result[id] = value
 	}
 	return result, nil
 }

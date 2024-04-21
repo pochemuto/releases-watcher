@@ -13,9 +13,10 @@ import (
 )
 
 type Library struct {
-	db      DB
-	discogs discogs.Discogs
-	limiter *rate.Limiter
+	db       DB
+	discogs  discogs.Discogs
+	limiter  *rate.Limiter
+	releases map[string]*discogs.Release
 }
 
 func NewLibrary(token string, db DB) (Library, error) {
@@ -37,14 +38,28 @@ func NewLibrary(token string, db DB) (Library, error) {
 	}, nil
 }
 
-func (l Library) api() discogs.Discogs {
+func (l *Library) api() discogs.Discogs {
 	l.limiter.Wait(context.Background())
 	return l.discogs
 }
 
-func (l Library) getRelease(releaseID int) (*discogs.Release, error) {
-	return GetCached(&l.db, context.TODO(), "discogs_release", strconv.Itoa(releaseID),
-		10*24*time.Hour, func() (*discogs.Release, error) {
+func (l *Library) getRelease(releaseID int) (*discogs.Release, error) {
+	id := strconv.Itoa(releaseID)
+	freshness := 10 * 24 * time.Hour
+	if l.releases == nil {
+		var err error
+		l.releases, err = GetAll[discogs.Release](&l.db, context.TODO(), "discogs_release", freshness)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Loaded %d releases from cache", len(l.releases))
+	}
+	if release, ok := l.releases[id]; ok {
+		log.Infof("Loaded release %d from cache", releaseID)
+		return release, nil
+	}
+	return GetCached(&l.db, context.TODO(), "discogs_release", id,
+		freshness, func() (*discogs.Release, error) {
 			return l.api().Release(releaseID)
 		})
 }
@@ -82,7 +97,7 @@ func IsSingle(release *discogs.Release) bool {
 	return false
 }
 
-func (l Library) getArtistID(artist string) (int, error) {
+func (l *Library) getArtistID(artist string) (int, error) {
 	search, err := GetCached(&l.db, context.TODO(), "discogs_artist_search", artist, 10*24*time.Hour, func() (*discogs.Search, error) {
 		request := discogs.SearchRequest{Type: "artist", Q: artist, PerPage: 300}
 		return l.api().Search(request)
@@ -96,7 +111,7 @@ func (l Library) getArtistID(artist string) (int, error) {
 	return search.Results[0].ID, nil
 }
 
-func (l Library) getArtistReleases(artistID int, page int) (*discogs.ArtistReleases, error) {
+func (l *Library) getArtistReleases(artistID int, page int) (*discogs.ArtistReleases, error) {
 	id := fmt.Sprintf("%d_%d", artistID, page)
 	return GetCached(&l.db, context.TODO(), "discord_artist_releases",
 		id, 10*24*time.Hour, func() (*discogs.ArtistReleases, error) {
@@ -105,7 +120,7 @@ func (l Library) getArtistReleases(artistID int, page int) (*discogs.ArtistRelea
 		})
 }
 
-func (l Library) GetReleases(artist string) ([]discogs.Release, error) {
+func (l *Library) GetReleases(artist string) ([]discogs.Release, error) {
 	artistID, err := l.getArtistID(artist)
 	if err != nil {
 		return nil, err
