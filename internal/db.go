@@ -48,6 +48,44 @@ func (db DB) Discogs() discogs_cache {
 	return discogs_cache{db}
 }
 
+func (db DB) UpdateLocalAlbums(ctx context.Context, album []Album) error {
+	log.Infof("Saving local database. Number of albums: %d", len(album))
+	tx, err := db.conn.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	_, err = db.conn.Exec(ctx, "DELETE FROM album")
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+	for _, a := range album {
+		err := db.InsertLocalAlbum(ctx, a)
+		if err != nil {
+			tx.Rollback(ctx)
+			return err
+		}
+	}
+
+	log.Info("Local database updated")
+	return tx.Commit(ctx)
+}
+
+func (db DB) StartUpdateAlbums(ctx context.Context) (pgx.Tx, error) {
+	tx, err := db.conn.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_, err = db.conn.Exec(ctx, "DELETE FROM album")
+	if err != nil {
+		tx.Rollback(ctx)
+		return nil, err
+	}
+	return tx, nil
+}
+
 func (db DB) InsertLocalAlbum(ctx context.Context, album Album) error {
 	_, err := db.conn.Exec(ctx,
 		"INSERT INTO album (artist, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
@@ -177,27 +215,3 @@ func (db DB) GetEntity(ctx context.Context,
 	}
 	return result, nil
 }
-
-// func (db discogs_cache) GetRelease(ctx context.Context, releaseID int) ([]byte, error) {
-// 	row := db.conn.QueryRow(ctx,
-// 		"SELECT response FROM discogs.release WHERE id = $1",
-// 		releaseID,
-// 	)
-// 	var result []byte
-// 	err := row.Scan(&result)
-// 	if err != nil {
-// 		if errors.Is(err, pgx.ErrNoRows) {
-// 			return nil, nil
-// 		}
-// 		return nil, err
-// 	}
-// 	return result, nil
-// }
-
-// func (db discogs_cache) SaveRelease(ctx context.Context, releaseID int, response []byte) error {
-// 	_, err := db.conn.Exec(ctx,
-// 		"INSERT INTO discogs.release (id, response) VALUES ($1, $2)",
-// 		releaseID, response,
-// 	)
-// 	return err
-// }

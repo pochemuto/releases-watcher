@@ -55,7 +55,7 @@ func (l *Library) getRelease(releaseID int) (*discogs.Release, error) {
 		log.Infof("Loaded %d releases from cache", len(l.releases))
 	}
 	if release, ok := l.releases[id]; ok {
-		log.Infof("Loaded release %d from cache", releaseID)
+		log.Tracef("Loaded release %d from cache", releaseID)
 		return release, nil
 	}
 	return GetCached(&l.db, context.TODO(), "discogs_release", id,
@@ -138,7 +138,7 @@ func (l *Library) GetReleases(artist string) ([]discogs.Release, error) {
 		}
 		for i, r := range resp.Releases {
 			if r.Type == "master" && r.Role == "Main" {
-				log.Infof("--- Fetched %d of %d [page %d/%d]", i+1, len(resp.Releases), page+1, resp.Pagination.Pages)
+				log.Tracef("--- Fetched %d of %d [page %d/%d]", i+1, len(resp.Releases), page+1, resp.Pagination.Pages)
 				release, err := l.getRelease(r.MainRelease)
 				if err != nil {
 					return nil, err

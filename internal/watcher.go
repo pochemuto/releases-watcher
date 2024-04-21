@@ -25,11 +25,12 @@ func NewWatcher(root string, db DB, lib Library) (Watcher, error) {
 
 func (w Watcher) UpdateActualLibrary() error {
 	artists, err := w.db.GetLocalArtists(context.Background())
+	log.Infof("Updating local library from Discogs for %d artists", len(artists))
 	if err != nil {
 		return err
 	}
 	for i, artist := range artists {
-		log.Infof("Fetching for %s [%d of %d]", artist, i+1, len(artists))
+		log.Tracef("Fetching for %s [%d of %d]", artist, i+1, len(artists))
 		releases, err := w.lib.GetReleases(artist)
 		if err != nil {
 			log.Errorf("Error when processing artist '%v': %v", artist, err)
@@ -37,19 +38,19 @@ func (w Watcher) UpdateActualLibrary() error {
 		}
 		for _, r := range releases {
 			if IsAlbum(&r) {
-				log.Infof("Album: [%d] [%s] (%d) %s",
+				log.Tracef("Album: [%d] [%s] (%d) %s",
 					r.Year, "Album", r.ID, r.Title)
 			}
 		}
 		for _, r := range releases {
 			if IsEP(&r) {
-				log.Infof("Album: [%d] [%s] (%d) %s",
+				log.Tracef("Album: [%d] [%s] (%d) %s",
 					r.Year, "EP", r.ID, r.Title)
 			}
 		}
 		for _, r := range releases {
 			if IsSingle(&r) {
-				log.Infof("Album: [%d] [%s] (%d) %s",
+				log.Tracef("Album: [%d] [%s] (%d) %s",
 					r.Year, "Single", r.ID, r.Title)
 			}
 		}
@@ -57,7 +58,8 @@ func (w Watcher) UpdateActualLibrary() error {
 	return err
 }
 
-func (w Watcher) UpdateLocalLibrary() {
+func (w Watcher) UpdateLocalLibrary() error {
+	log.Info("Updating local library")
 	filenames := make(chan string)
 	tags := make(chan id3v2.Tag)
 
@@ -88,6 +90,7 @@ func (w Watcher) UpdateLocalLibrary() {
 	}()
 
 	albums := make(map[Album]bool)
+
 	for tag := range tags {
 		album := Album{
 			Artist: tag.Artist(),
@@ -102,8 +105,10 @@ func (w Watcher) UpdateLocalLibrary() {
 			if err != nil {
 				log.Errorf("Failed to write to db: %v", err)
 			}
-			log.Infof("Read %d/%d %s - %s", processedCount.Load(), filesnamesCount.Load(),
+			log.Tracef("Read %d/%d %s - %s", processedCount.Load(), filesnamesCount.Load(),
 				album.Artist, album.Album)
 		}
 	}
+
+	return nil
 }

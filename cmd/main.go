@@ -30,10 +30,11 @@ func main() {
 	if err != nil {
 		log.Panicf("Library creation error %v", err)
 	}
-	watcher, err := releaseswatcher.NewWatcher("/Volumes/Yandex.Disk/Music", db, lib)
+	watcher, err := releaseswatcher.NewWatcher("/Users/pochemuto/Music", db, lib)
 	if err != nil {
 		log.Panicf("Watcher creation error: %v", err)
 	}
+	err = watcher.UpdateLocalLibrary()
 	err = watcher.UpdateActualLibrary()
 	if err != nil {
 		log.Panicf("Update library error: %v", err)
