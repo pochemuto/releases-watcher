@@ -16,12 +16,12 @@ const ReadWorkers = 10
 var log = logrus.New()
 
 type Watcher struct {
-	db   DB
-	lib  Library
+	db   *DB
+	lib  *Library
 	root string
 }
 
-func NewWatcher(root string, db DB, lib Library) (Watcher, error) {
+func NewWatcher(root string, db *DB, lib *Library) (Watcher, error) {
 	return Watcher{root: root, db: db, lib: lib}, nil
 }
 
@@ -127,7 +127,7 @@ func (w Watcher) UpdateLocalLibrary() error {
 			if !IsCorrect(album) {
 				log.Warnf("Incorrect tag %v", tag)
 			}
-			err := w.db.InsertLocalAlbum(context.TODO(), tx, album)
+			err := w.db.InsertLocalAlbum(context.Background(), tx, album)
 			if err != nil {
 				log.Errorf("Failed to write to db: %v", err)
 			}

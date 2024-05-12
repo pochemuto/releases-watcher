@@ -35,9 +35,12 @@ func main() {
 		log.Panicf("Watcher creation error: %v", err)
 	}
 	err = watcher.UpdateLocalLibrary()
+	if err != nil {
+		log.Panicf("Update local library error: %v", err)
+	}
 	err = watcher.UpdateActualLibrary()
 	if err != nil {
-		log.Panicf("Update library error: %v", err)
+		log.Panicf("Update actual library error: %v", err)
 	}
 	log.Info("Done")
 }

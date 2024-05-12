@@ -17,17 +17,17 @@ type DB struct {
 	queries *sqlc.Queries
 }
 
-func NewDB(connection string) (DB, error) {
+func NewDB(connection string) (*DB, error) {
 	conn, err := pgxpool.New(context.Background(), connection)
 	if err != nil {
-		return DB{}, err
+		return nil, err
 	}
 
 	err = conn.Ping(context.Background())
 	if err != nil {
-		return DB{}, err
+		return nil, err
 	}
-	return DB{
+	return &DB{
 		conn:    conn,
 		queries: sqlc.New(conn),
 	}, nil
@@ -68,20 +68,11 @@ func (db DB) StartUpdateActualAlbums(ctx context.Context) (pgx.Tx, error) {
 }
 
 func (db DB) InsertLocalAlbum(ctx context.Context, tx pgx.Tx, album sqlc.Album) error {
-	return db.queries.InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams{
-		Artist: album.Artist,
-		Name:   album.Name,
-	})
+	return db.queries.WithTx(tx).InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams(album))
 }
 
 func (db DB) InsertActualAlbum(ctx context.Context, tx pgx.Tx, album sqlc.ActualAlbum) error {
-	return db.queries.WithTx(tx).InsertActualAlbum(ctx, sqlc.InsertActualAlbumParams{
-		ID:     album.ID,
-		Artist: album.Artist,
-		Name:   album.Name,
-		Year:   album.Year,
-		Kind:   album.Kind,
-	})
+	return db.queries.WithTx(tx).InsertActualAlbum(ctx, sqlc.InsertActualAlbumParams(album))
 }
 
 func (db DB) GetLocalAlbums(ctx context.Context) ([]sqlc.Album, error) {
