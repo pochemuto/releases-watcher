@@ -8,27 +8,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pochemuto/releases-watcher/sqlc"
 	// "github.com/sirupsen/logrus"
 )
 
 type DB struct {
-	conn *pgxpool.Pool
-}
-type discogs_cache struct {
-	DB
-}
-
-type Album struct {
-	Artist string `bson:"artist"`
-	Album  string `bson:"album"`
-}
-
-type ActualAlbum struct {
-	Id     int
-	Artist string
-	Album  string
-	Year   int
-	Kind   string
+	conn    *pgxpool.Pool
+	queries *sqlc.Queries
 }
 
 func NewDB(connection string) (DB, error) {
@@ -41,27 +27,26 @@ func NewDB(connection string) (DB, error) {
 	if err != nil {
 		return DB{}, err
 	}
-	return DB{conn: conn}, nil
+	return DB{
+		conn:    conn,
+		queries: sqlc.New(conn),
+	}, nil
 }
 
-func (a Album) IsCorrect() bool {
-	return len(a.Artist) > 0 && len(a.Album) > 0
+func IsCorrect(a sqlc.Album) bool {
+	return len(a.Artist) > 0 && len(a.Name) > 0
 }
 
 func (db DB) Disconnect() {
 	db.conn.Close()
 }
 
-func (db DB) Discogs() discogs_cache {
-	return discogs_cache{db}
-}
-
-func (db DB) StartUpdateAlbums(ctx context.Context) (pgx.Tx, error) {
+func (db DB) StartUpdateLocalAlbums(ctx context.Context) (pgx.Tx, error) {
 	tx, err := db.conn.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.Exec(ctx, "DELETE FROM album")
+	err = db.queries.WithTx(tx).DeleteAllLocalAlbums(ctx)
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err
@@ -74,7 +59,7 @@ func (db DB) StartUpdateActualAlbums(ctx context.Context) (pgx.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.Exec(ctx, "DELETE FROM actual_album")
+	err = db.queries.WithTx(tx).DeleteAllActualAlbums(ctx)
 	if err != nil {
 		tx.Rollback(ctx)
 		return nil, err
@@ -82,53 +67,29 @@ func (db DB) StartUpdateActualAlbums(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-func (db DB) InsertLocalAlbum(ctx context.Context, tx pgx.Tx, album Album) error {
-	_, err := tx.Exec(ctx,
-		"INSERT INTO album (artist, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-		album.Artist, album.Album)
-	return err
+func (db DB) InsertLocalAlbum(ctx context.Context, tx pgx.Tx, album sqlc.Album) error {
+	return db.queries.InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams{
+		Artist: album.Artist,
+		Name:   album.Name,
+	})
 }
 
-func (db DB) InsertActualAlbum(ctx context.Context, tx pgx.Tx, album ActualAlbum) error {
-	_, err := tx.Exec(ctx,
-		`INSERT INTO actual_album (id, artist, name, year, kind)
-		 VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
-		album.Id, album.Artist, album.Album, album.Year, album.Kind)
-	return err
+func (db DB) InsertActualAlbum(ctx context.Context, tx pgx.Tx, album sqlc.ActualAlbum) error {
+	return db.queries.WithTx(tx).InsertActualAlbum(ctx, sqlc.InsertActualAlbumParams{
+		ID:     album.ID,
+		Artist: album.Artist,
+		Name:   album.Name,
+		Year:   album.Year,
+		Kind:   album.Kind,
+	})
 }
 
-func (db DB) GetLocalAlbums(ctx context.Context) ([]Album, error) {
-	result := make([]Album, 0)
-	scan, err := db.conn.Query(ctx, "SELECT artist, name FROM album")
-	if err != nil {
-		return nil, err
-	}
-	for scan.Next() {
-		var album Album
-		err := scan.Scan(&album.Artist, &album.Album)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, album)
-	}
-	return result, nil
+func (db DB) GetLocalAlbums(ctx context.Context) ([]sqlc.Album, error) {
+	return db.queries.GetLocalAlbums(ctx)
 }
 
 func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
-	result := make([]string, 0)
-	scan, err := db.conn.Query(ctx, "SELECT DISTINCT artist FROM album")
-	if err != nil {
-		return nil, err
-	}
-	for scan.Next() {
-		var artist string
-		err := scan.Scan(&artist)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, artist)
-	}
-	return result, nil
+	return db.queries.GetLocalArtists(ctx)
 }
 
 func GetAll[T any](db *DB, ctx context.Context,
@@ -170,35 +131,28 @@ func GetCached[T any](db *DB, ctx context.Context,
 
 func (db DB) GetAll(ctx context.Context,
 	entity string, freshness time.Duration) (map[string][]byte, error) {
-	rows, err := db.conn.Query(ctx,
-		"SELECT value, id FROM cache WHERE entity = $1", entity)
+	// use iterator
+	// https://github.com/sqlc-dev/sqlc/issues/720
+	rows, err := db.queries.GetAll(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make(map[string][]byte)
-	for rows.Next() {
-		var value []byte
-		var id string
-		err = rows.Scan(&value, &id)
-		if err != nil {
-			return nil, err
-		}
-		result[id] = value
+	for _, row := range rows {
+		result[row.ID] = row.Value
 	}
 	return result, nil
 }
 
 func (db DB) GetEntity(ctx context.Context,
 	entity string, id string, freshness time.Duration, fetcher func() ([]byte, error)) ([]byte, error) {
-	row := db.conn.QueryRow(ctx,
-		"SELECT value FROM cache WHERE entity = $1 AND id = $2",
-		entity, id,
-	)
-	var result []byte
-	err := row.Scan(&result)
+	result, err := db.queries.GetCache(ctx, sqlc.GetCacheParams{
+		Entity: entity,
+		ID:     id,
+	})
 	if err != nil {
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		if !errors.Is(err, pgx.ErrNoRows) {
 			return nil, err
 		}
 
@@ -207,10 +161,11 @@ func (db DB) GetEntity(ctx context.Context,
 			return nil, err
 		}
 
-		_, err = db.conn.Exec(ctx,
-			"INSERT INTO cache (entity, id, value) VALUES ($1, $2, $3)",
-			entity, id, result,
-		)
+		err = db.queries.InsertCache(ctx, sqlc.InsertCacheParams{
+			Entity: entity,
+			ID:     id,
+			Value:  result,
+		})
 		if err != nil {
 			return nil, err
 		}

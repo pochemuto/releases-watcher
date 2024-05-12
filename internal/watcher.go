@@ -7,6 +7,7 @@ import (
 
 	"github.com/bogem/id3v2"
 	"github.com/irlndts/go-discogs"
+	"github.com/pochemuto/releases-watcher/sqlc"
 	"github.com/sirupsen/logrus"
 )
 
@@ -47,12 +48,13 @@ func (w Watcher) UpdateActualLibrary() error {
 			if kind == "" {
 				continue
 			}
-			actualAlbum := ActualAlbum{
-				Id:     release.ID,
-				Artist: artist,
-				Album:  release.Title,
-				Year:   release.Year,
-				Kind:   kind,
+			year := int32(release.Year)
+			actualAlbum := sqlc.ActualAlbum{
+				ID:     int64(release.ID),
+				Artist: &artist,
+				Name:   &release.Title,
+				Year:   &year,
+				Kind:   &kind,
 			}
 			err := w.db.InsertActualAlbum(context.Background(), tx, actualAlbum)
 			if err != nil {
@@ -108,21 +110,21 @@ func (w Watcher) UpdateLocalLibrary() error {
 		close(tags)
 	}()
 
-	albums := make(map[Album]bool)
+	albums := make(map[sqlc.Album]bool)
 
-	tx, err := w.db.StartUpdateAlbums(context.Background())
+	tx, err := w.db.StartUpdateLocalAlbums(context.Background())
 	if err != nil {
 		return err
 	}
 	defer tx.Commit(context.Background())
 	for tag := range tags {
-		album := Album{
+		album := sqlc.Album{
 			Artist: tag.Artist(),
-			Album:  tag.Album(),
+			Name:   tag.Album(),
 		}
 		if _, present := albums[album]; !present {
 			albums[album] = true
-			if !album.IsCorrect() {
+			if !IsCorrect(album) {
 				log.Warnf("Incorrect tag %v", tag)
 			}
 			err := w.db.InsertLocalAlbum(context.TODO(), tx, album)
@@ -130,7 +132,7 @@ func (w Watcher) UpdateLocalLibrary() error {
 				log.Errorf("Failed to write to db: %v", err)
 			}
 			log.Tracef("Read %d/%d %s - %s", processedCount.Load(), filesnamesCount.Load(),
-				album.Artist, album.Album)
+				album.Artist, album.Name)
 		}
 	}
 
