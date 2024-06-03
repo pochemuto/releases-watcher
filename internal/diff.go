@@ -58,6 +58,12 @@ func Diff(local []sqlc.Album, actual []sqlc.ActualAlbum, excludedAlbums []sqlc.A
 		if actual.Year != nil && *actual.Year < 2010 {
 			continue
 		}
+		if strings.Contains(*actual.Name, "Remixed") ||
+			strings.Contains(*actual.Name, "Remix") ||
+			strings.Contains(*actual.Name, "Remastered") ||
+			strings.Contains(*actual.Name, "Remaster") {
+			continue
+		}
 
 		normalizedAlbum := Normalize(sqlc.Album{Artist: *actual.Artist, Name: *actual.Name})
 		normalizedArtist := normalizeString(*actual.Artist)

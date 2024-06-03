@@ -92,7 +92,9 @@ func main() {
 	for _, newAlbum := range newAlbums {
 		if *newAlbum.Kind == "album" {
 			albumCount++
-			log.Infof("New album: %s - %s (%s)", *newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind)
+			log.Infof("New album: [%v] %s - %s (%s)",
+				*newAlbum.Year,
+				*newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind)
 		}
 	}
 
