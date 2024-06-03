@@ -66,6 +66,10 @@ func Diff(local []sqlc.Album, actual []sqlc.ActualAlbum, excludedAlbums []sqlc.A
 			strings.Contains(*actual.Name, "Motion Picture") {
 			continue
 		}
+		if strings.HasPrefix(*actual.Name, "Live ") ||
+			strings.HasSuffix(*actual.Name, " Live") {
+			continue
+		}
 
 		normalizedAlbum := Normalize(sqlc.Album{Artist: *actual.Artist, Name: *actual.Name})
 		normalizedArtist := normalizeString(*actual.Artist)
