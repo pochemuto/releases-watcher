@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"sort"
 
 	"github.com/joho/godotenv"
 	releaseswatcher "github.com/pochemuto/releases-watcher/internal"
@@ -65,7 +66,7 @@ func main() {
 	}
 
 	excludedAlbums := []sqlc.Album{
-		{Artist: "David Bowie", Name: "★ (Blackstar)"},
+		{Artist: "Jamie XX", Name: "In Colours"},
 	}
 
 	excludedArtists := []string{
@@ -89,6 +90,10 @@ func main() {
 
 	newAlbums := releaseswatcher.Diff(local, actual, excludedAlbums, excludedArtists)
 	albumCount := 0
+	// Sort newAlbums by Year in descending order
+	sort.Slice(newAlbums, func(i, j int) bool {
+		return *newAlbums[i].Year < *newAlbums[j].Year
+	})
 	for _, newAlbum := range newAlbums {
 		if *newAlbum.Kind == "album" {
 			albumCount++

@@ -61,7 +61,9 @@ func Diff(local []sqlc.Album, actual []sqlc.ActualAlbum, excludedAlbums []sqlc.A
 		if strings.Contains(*actual.Name, "Remixed") ||
 			strings.Contains(*actual.Name, "Remix") ||
 			strings.Contains(*actual.Name, "Remastered") ||
-			strings.Contains(*actual.Name, "Remaster") {
+			strings.Contains(*actual.Name, "Remaster") ||
+			strings.Contains(*actual.Name, "Soundtrack") ||
+			strings.Contains(*actual.Name, "Motion Picture") {
 			continue
 		}
 
