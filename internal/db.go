@@ -68,7 +68,7 @@ func (db DB) StartUpdateActualAlbums(ctx context.Context) (pgx.Tx, error) {
 }
 
 func (db DB) InsertLocalAlbum(ctx context.Context, tx pgx.Tx, album sqlc.Album) error {
-	return db.queries.WithTx(tx).InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams(album))
+	return db.queries.InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams(album))
 }
 
 func (db DB) InsertActualAlbum(ctx context.Context, tx pgx.Tx, album sqlc.ActualAlbum) error {
@@ -79,13 +79,17 @@ func (db DB) GetLocalAlbums(ctx context.Context) ([]sqlc.Album, error) {
 	return db.queries.GetLocalAlbums(ctx)
 }
 
+func (db DB) GetActualAlbums(ctx context.Context) ([]sqlc.ActualAlbum, error) {
+	return db.queries.GetActualAlbums(ctx)
+}
+
 func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
 	return db.queries.GetLocalArtists(ctx)
 }
 
-func GetAll[T any](db *DB, ctx context.Context,
+func GetAllCacheEntities[T any](db *DB, ctx context.Context,
 	entity string, freshness time.Duration) (map[string]*T, error) {
-	rows, err := db.GetAll(ctx, entity, freshness)
+	rows, err := db.GetAllCacheEntities(ctx, entity, freshness)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +124,7 @@ func GetCached[T any](db *DB, ctx context.Context,
 	return result, nil
 }
 
-func (db DB) GetAll(ctx context.Context,
+func (db DB) GetAllCacheEntities(ctx context.Context,
 	entity string, freshness time.Duration) (map[string][]byte, error) {
 	// use iterator
 	// https://github.com/sqlc-dev/sqlc/issues/720

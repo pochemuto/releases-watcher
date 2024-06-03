@@ -1,6 +1,9 @@
 
 -- name: GetLocalAlbums :many
-SELECT artist, name FROM album;
+SELECT * FROM album;
+
+-- name: GetActualAlbums :many
+SELECT * FROM actual_album;
 
 -- name: GetLocalArtists :many
 SELECT DISTINCT artist FROM album;

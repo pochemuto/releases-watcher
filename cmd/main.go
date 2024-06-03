@@ -1,16 +1,23 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"os"
 
 	"github.com/joho/godotenv"
 	releaseswatcher "github.com/pochemuto/releases-watcher/internal"
+	"github.com/pochemuto/releases-watcher/sqlc"
 	"github.com/sirupsen/logrus"
 )
 
 var log = logrus.New()
 
 func main() {
+	updateLocal := flag.Bool("update-local", false, "Update local library")
+	updateActual := flag.Bool("update-actual", false, "Update actual library")
+	flag.Parse()
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -34,13 +41,61 @@ func main() {
 	if err != nil {
 		log.Panicf("Watcher creation error: %v", err)
 	}
-	err = watcher.UpdateLocalLibrary()
-	if err != nil {
-		log.Panicf("Update local library error: %v", err)
+
+	if *updateLocal {
+		err = watcher.UpdateLocalLibrary()
+		if err != nil {
+			log.Panicf("Update local library error: %v", err)
+		}
 	}
-	err = watcher.UpdateActualLibrary()
-	if err != nil {
-		log.Panicf("Update actual library error: %v", err)
+	if *updateActual {
+		err = watcher.UpdateActualLibrary()
+		if err != nil {
+			log.Panicf("Update actual library error: %v", err)
+		}
 	}
+
+	local, err := db.GetLocalAlbums(context.Background())
+	if err != nil {
+		log.Panicf("Error loading local albums: %v", err)
+	}
+	actual, err := db.GetActualAlbums(context.Background())
+	if err != nil {
+		log.Panicf("Error loading actual albums: %v", err)
+	}
+
+	excludedAlbums := []sqlc.Album{
+		{Artist: "David Bowie", Name: "★ (Blackstar)"},
+	}
+
+	excludedArtists := []string{
+		"Oasis",
+		"Skillet",
+		"Red",
+		"Juno Reactor",
+		"GMS",
+		"Klaxons",
+		"Matt & Kim",
+		"Sum 41",
+		"Three Days Grace",
+		"Michael Jackson",
+		"Maxim",
+		"Papa Roach",
+		"Evanescence",
+		"Fireflight",
+		"Venetian Snares",
+		"The Naked and Famous",
+	}
+
+	newAlbums := releaseswatcher.Diff(local, actual, excludedAlbums, excludedArtists)
+	albumCount := 0
+	for _, newAlbum := range newAlbums {
+		if *newAlbum.Kind == "album" {
+			albumCount++
+			log.Infof("New album: %s - %s (%s)", *newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind)
+		}
+	}
+
+	log.Infof("Found %d new albums", albumCount)
 	log.Info("Done")
 }

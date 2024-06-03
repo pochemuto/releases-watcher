@@ -27,6 +27,36 @@ func (q *Queries) DeleteAllLocalAlbums(ctx context.Context) error {
 	return err
 }
 
+const getActualAlbums = `-- name: GetActualAlbums :many
+SELECT id, artist, name, year, kind FROM actual_album
+`
+
+func (q *Queries) GetActualAlbums(ctx context.Context) ([]ActualAlbum, error) {
+	rows, err := q.db.Query(ctx, getActualAlbums)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ActualAlbum
+	for rows.Next() {
+		var i ActualAlbum
+		if err := rows.Scan(
+			&i.ID,
+			&i.Artist,
+			&i.Name,
+			&i.Year,
+			&i.Kind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAll = `-- name: GetAll :many
 SELECT value, id FROM cache WHERE entity = $1
 `

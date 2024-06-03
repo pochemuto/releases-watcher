@@ -48,7 +48,7 @@ func (l *Library) getRelease(releaseID int) (*discogs.Release, error) {
 	freshness := 10 * 24 * time.Hour
 	if l.releases == nil {
 		var err error
-		l.releases, err = GetAll[discogs.Release](l.db, context.TODO(), "discogs_release", freshness)
+		l.releases, err = GetAllCacheEntities[discogs.Release](l.db, context.TODO(), "discogs_release", freshness)
 		if err != nil {
 			return nil, err
 		}
