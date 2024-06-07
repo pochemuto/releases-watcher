@@ -143,7 +143,9 @@ func (l *Library) GetReleases(artist string) ([]discogs.Release, error) {
 				if err != nil {
 					return nil, err
 				}
-				if IsAlbum(release) || IsEP(release) || IsSingle(release) {
+				properType := IsAlbum(release) || IsEP(release) || IsSingle(release)
+				mainArtist := IsMainArtist(release, artistID)
+				if properType && mainArtist {
 					releases = append(releases, *release)
 				}
 			}
@@ -156,4 +158,8 @@ func (l *Library) GetReleases(artist string) ([]discogs.Release, error) {
 
 	}
 	return releases, nil
+}
+
+func IsMainArtist(release *discogs.Release, artistID int) bool {
+	return release.Artists[0].ID == artistID
 }

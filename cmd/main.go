@@ -67,6 +67,9 @@ func main() {
 
 	excludedAlbums := []sqlc.Album{
 		{Artist: "Jamie XX", Name: "In Colours"},
+		{Artist: "Bran Van 3000", Name: "The Garden"},
+		{Artist: "Bran Van 3000", Name: "The Garden"},
+		{Artist: "Justice", Name: "Woman Worldwide"},
 	}
 
 	excludedArtists := []string{
@@ -97,9 +100,9 @@ func main() {
 	for _, newAlbum := range newAlbums {
 		if *newAlbum.Kind == "album" {
 			albumCount++
-			log.Infof("New album: [%v] %s - %s (%s)",
+			log.Infof("New album: [%v] %s - %s (%s)  http://discogs.com/release/%v",
 				*newAlbum.Year,
-				*newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind)
+				*newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind, newAlbum.ID)
 		}
 	}
 

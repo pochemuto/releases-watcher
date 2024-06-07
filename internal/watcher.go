@@ -2,6 +2,7 @@ package releaseswatcher
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -48,6 +49,9 @@ func (w Watcher) UpdateActualLibrary() error {
 			if kind == "" {
 				continue
 			}
+			if isSoundtrack(release) {
+				continue
+			}
 			year := int32(release.Year)
 			actualAlbum := sqlc.ActualAlbum{
 				ID:     int64(release.ID),
@@ -64,6 +68,10 @@ func (w Watcher) UpdateActualLibrary() error {
 		}
 	}
 	return err
+}
+
+func isSoundtrack(release discogs.Release) bool {
+	return slices.Contains(release.Styles, "Soundtrack")
 }
 
 func getKind(release discogs.Release) string {
