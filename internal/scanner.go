@@ -2,19 +2,24 @@ package releaseswatcher
 
 import (
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 
-	"github.com/bogem/id3v2"
+	"github.com/dhowden/tag"
 )
 
-func ReadID3(filepath string) (*id3v2.Tag, error) {
-	tag, err := id3v2.Open(filepath, id3v2.Options{Parse: true})
+func ReadID3(filepath string) (tag.Metadata, error) {
+	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
-	defer tag.Close()
+	defer file.Close()
+	tag, err := tag.ReadFrom(file)
+	if err != nil {
+		return nil, err
+	}
 
 	return tag, nil
 }

@@ -3,10 +3,11 @@ package releaseswatcher
 import (
 	"context"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/bogem/id3v2"
+	"github.com/dhowden/tag"
 	"github.com/irlndts/go-discogs"
 	"github.com/pochemuto/releases-watcher/sqlc"
 	"github.com/sirupsen/logrus"
@@ -90,7 +91,7 @@ func getKind(release discogs.Release) string {
 func (w Watcher) UpdateLocalLibrary() error {
 	log.Info("Updating local library")
 	filenames := make(chan string)
-	tags := make(chan id3v2.Tag)
+	tags := make(chan tag.Metadata)
 
 	var filesnamesCount atomic.Int32
 	var processedCount atomic.Int32
@@ -109,7 +110,7 @@ func (w Watcher) UpdateLocalLibrary() error {
 					log.Warningf("Error when parsing %s: %v", err, filename)
 					continue
 				}
-				tags <- *tag
+				tags <- tag
 			}
 		}()
 	}
