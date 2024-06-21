@@ -68,7 +68,7 @@ func (db DB) StartUpdateActualAlbums(ctx context.Context) (pgx.Tx, error) {
 }
 
 func (db DB) InsertLocalAlbum(ctx context.Context, tx pgx.Tx, album sqlc.Album) error {
-	return db.queries.InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams(album))
+	return db.queries.WithTx(tx).InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams(album))
 }
 
 func (db DB) InsertActualAlbum(ctx context.Context, tx pgx.Tx, album sqlc.ActualAlbum) error {
