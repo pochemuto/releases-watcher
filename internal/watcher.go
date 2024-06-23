@@ -3,7 +3,6 @@ package releaseswatcher
 import (
 	"context"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 

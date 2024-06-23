@@ -64,37 +64,31 @@ func (l *Library) getRelease(releaseID int) (*discogs.Release, error) {
 		})
 }
 
-func IsAlbum(release *discogs.Release) bool {
+func isReleaseType(release *discogs.Release, releaseType string) bool {
 	for _, format := range release.Formats {
 		for _, desc := range format.Descriptions {
-			if strings.ToLower(desc) == "album" {
+			if strings.ToLower(desc) == releaseType {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func IsAlbum(release *discogs.Release) bool {
+	return isReleaseType(release, "album")
 }
 
 func IsEP(release *discogs.Release) bool {
-	for _, format := range release.Formats {
-		for _, desc := range format.Descriptions {
-			if strings.ToLower(desc) == "ep" {
-				return true
-			}
-		}
-	}
-	return false
+	return isReleaseType(release, "ep")
 }
 
 func IsSingle(release *discogs.Release) bool {
-	for _, format := range release.Formats {
-		for _, desc := range format.Descriptions {
-			if strings.ToLower(desc) == "single" {
-				return true
-			}
-		}
-	}
-	return false
+	return isReleaseType(release, "single")
+}
+
+func IsCompilation(release *discogs.Release) bool {
+	return isReleaseType(release, "compilation")
 }
 
 func (l *Library) getArtistID(artist string) (int, error) {
@@ -142,6 +136,9 @@ func (l *Library) GetReleases(artist string) ([]discogs.Release, error) {
 				release, err := l.getRelease(r.MainRelease)
 				if err != nil {
 					return nil, err
+				}
+				if IsCompilation(release) {
+					continue
 				}
 				properType := IsAlbum(release) || IsEP(release) || IsSingle(release)
 				mainArtist := IsMainArtist(release, artistID)
