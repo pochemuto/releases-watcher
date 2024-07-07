@@ -64,33 +64,6 @@ func (l *Library) getRelease(releaseID int) (*discogs.Release, error) {
 		})
 }
 
-func isReleaseType(release *discogs.Release, releaseType string) bool {
-	for _, format := range release.Formats {
-		for _, desc := range format.Descriptions {
-			if strings.ToLower(desc) == releaseType {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func IsAlbum(release *discogs.Release) bool {
-	return isReleaseType(release, "album")
-}
-
-func IsEP(release *discogs.Release) bool {
-	return isReleaseType(release, "ep")
-}
-
-func IsSingle(release *discogs.Release) bool {
-	return isReleaseType(release, "single")
-}
-
-func IsCompilation(release *discogs.Release) bool {
-	return isReleaseType(release, "compilation")
-}
-
 func (l *Library) getArtistID(artist string) (int, error) {
 	search, err := GetCached(l.db, context.TODO(), "discogs_artist_search", artist, 10*24*time.Hour, func() (*discogs.Search, error) {
 		request := discogs.SearchRequest{Type: "artist", Q: artist, PerPage: 300}
@@ -137,11 +110,11 @@ func (l *Library) GetReleases(artist string) ([]discogs.Release, error) {
 				if err != nil {
 					return nil, err
 				}
-				if IsCompilation(release) {
+				if isCompilation(release) {
 					continue
 				}
-				properType := IsAlbum(release) || IsEP(release) || IsSingle(release)
-				mainArtist := IsMainArtist(release, artistID)
+				properType := isAlbum(release) || isEP(release) || isSingle(release)
+				mainArtist := isMainArtist(release, artistID)
 				if properType && mainArtist {
 					releases = append(releases, *release)
 				}
@@ -157,6 +130,33 @@ func (l *Library) GetReleases(artist string) ([]discogs.Release, error) {
 	return releases, nil
 }
 
-func IsMainArtist(release *discogs.Release, artistID int) bool {
+func isReleaseType(release *discogs.Release, releaseType string) bool {
+	for _, format := range release.Formats {
+		for _, desc := range format.Descriptions {
+			if strings.ToLower(desc) == releaseType {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isAlbum(release *discogs.Release) bool {
+	return isReleaseType(release, "album")
+}
+
+func isEP(release *discogs.Release) bool {
+	return isReleaseType(release, "ep")
+}
+
+func isSingle(release *discogs.Release) bool {
+	return isReleaseType(release, "single")
+}
+
+func isCompilation(release *discogs.Release) bool {
+	return isReleaseType(release, "compilation")
+}
+
+func isMainArtist(release *discogs.Release, artistID int) bool {
 	return release.Artists[0].ID == artistID
 }

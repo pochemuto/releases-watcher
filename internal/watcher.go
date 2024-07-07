@@ -70,23 +70,6 @@ func (w Watcher) UpdateActualLibrary() error {
 	return err
 }
 
-func isSoundtrack(release discogs.Release) bool {
-	return slices.Contains(release.Styles, "Soundtrack")
-}
-
-func getKind(release discogs.Release) string {
-	if IsAlbum(&release) {
-		return "album"
-	}
-	if IsSingle(&release) {
-		return "single"
-	}
-	if IsEP(&release) {
-		return "EP"
-	}
-	return ""
-}
-
 func (w Watcher) UpdateLocalLibrary() error {
 	log.Info("Updating local library")
 	filenames := make(chan string)
@@ -145,4 +128,21 @@ func (w Watcher) UpdateLocalLibrary() error {
 	}
 
 	return nil
+}
+
+func isSoundtrack(release discogs.Release) bool {
+	return slices.Contains(release.Styles, "Soundtrack")
+}
+
+func getKind(release discogs.Release) string {
+	if isAlbum(&release) {
+		return "album"
+	}
+	if isSingle(&release) {
+		return "single"
+	}
+	if isEP(&release) {
+		return "EP"
+	}
+	return ""
 }

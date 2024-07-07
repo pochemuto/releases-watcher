@@ -89,7 +89,7 @@ func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
 
 func GetAllCacheEntities[T any](db *DB, ctx context.Context,
 	entity string, freshness time.Duration) (map[string]*T, error) {
-	rows, err := db.GetAllCacheEntities(ctx, entity, freshness)
+	rows, err := db.getAllCacheEntities(ctx, entity, freshness)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func GetCached[T any](db *DB, ctx context.Context,
 		return json.Marshal(data)
 	}
 
-	data, err := db.GetEntity(ctx, entity, id, freshness, byte_fetcher)
+	data, err := db.getEntity(ctx, entity, id, freshness, byte_fetcher)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func GetCached[T any](db *DB, ctx context.Context,
 	return result, nil
 }
 
-func (db DB) GetAllCacheEntities(ctx context.Context,
+func (db DB) getAllCacheEntities(ctx context.Context,
 	entity string, freshness time.Duration) (map[string][]byte, error) {
 	// use iterator
 	// https://github.com/sqlc-dev/sqlc/issues/720
@@ -140,7 +140,7 @@ func (db DB) GetAllCacheEntities(ctx context.Context,
 	return result, nil
 }
 
-func (db DB) GetEntity(ctx context.Context,
+func (db DB) getEntity(ctx context.Context,
 	entity string, id string, freshness time.Duration, fetcher func() ([]byte, error)) ([]byte, error) {
 	result, err := db.queries.GetCache(ctx, sqlc.GetCacheParams{
 		Entity: entity,

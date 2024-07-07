@@ -60,7 +60,7 @@ func TestNormalize(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			actual := Normalize(test.input)
+			actual := normalize(test.input)
 			if actual != test.expected {
 				t.Errorf("Normalize(%v) = %v, expected %v", test.input, actual, test.expected)
 			}
