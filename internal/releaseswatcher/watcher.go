@@ -16,14 +16,16 @@ const ReadWorkers = 10
 
 var log = logrus.New()
 
+type RootPath string
+
 type Watcher struct {
 	db   *DB
 	lib  *Library
-	root string
+	root RootPath
 }
 
-func NewWatcher(root string, db *DB, lib *Library) (Watcher, error) {
-	return Watcher{root: root, db: db, lib: lib}, nil
+func NewWatcher(root RootPath, db *DB, lib *Library) (*Watcher, error) {
+	return &Watcher{root: root, db: db, lib: lib}, nil
 }
 
 func (w Watcher) UpdateActualLibrary() error {
@@ -77,7 +79,7 @@ func (w Watcher) UpdateLocalLibrary() error {
 
 	var filesnamesCount atomic.Int32
 	var processedCount atomic.Int32
-	go Scan(w.root, filenames, &filesnamesCount)
+	go Scan(string(w.root), filenames, &filesnamesCount)
 
 	var wg sync.WaitGroup
 

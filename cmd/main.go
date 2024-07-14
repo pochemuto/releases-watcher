@@ -4,7 +4,7 @@ import (
 	"flag"
 	"os"
 
-	releaseswatcher "github.com/pochemuto/releases-watcher/internal"
+	"github.com/pochemuto/releases-watcher/internal/releaseswatcher"
 	"github.com/sirupsen/logrus"
 )
 

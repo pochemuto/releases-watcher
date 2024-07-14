@@ -16,20 +16,24 @@ func App(updateLocal *bool, updateActual *bool) error {
 		return fmt.Errorf("error loading .env file: %w", err)
 	}
 
-	connectionString := os.Getenv("PGCONNECTION")
+	connectionString := ConnectionString(os.Getenv("PGCONNECTION"))
 	if connectionString == "" {
 		return fmt.Errorf("provide a connection string PGCONNECTION")
 	}
-	discogsToken := os.Getenv("DISCOGS_TOKEN")
+	discogsToken := DiscogsToken(os.Getenv("DISCOGS_TOKEN"))
 	if discogsToken == "" {
 		return fmt.Errorf("provide a DISCOGS_TOKEN")
 	}
-	root := os.Getenv("ROOT")
+	root := RootPath(os.Getenv("ROOT"))
 	if root == "" {
 		return fmt.Errorf("provide a ROOT")
 	}
 
-	db, watcher := InitializeApp(connectionString, discogsToken, root)
+	app, err := InitializeApp(connectionString, discogsToken, root)
+	if err != nil {
+		return fmt.Errorf("app initialization error: %w", err)
+	}
+	db, watcher := app.DB, app.Watcher
 	defer db.Disconnect()
 
 	if *updateLocal {

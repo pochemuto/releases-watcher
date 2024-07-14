@@ -17,8 +17,10 @@ type DB struct {
 	queries *sqlc.Queries
 }
 
-func NewDB(connection string) (*DB, error) {
-	conn, err := pgxpool.New(context.Background(), connection)
+type ConnectionString string
+
+func NewDB(connection ConnectionString) (*DB, error) {
+	conn, err := pgxpool.New(context.Background(), string(connection))
 	if err != nil {
 		return nil, err
 	}
