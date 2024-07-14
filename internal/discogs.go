@@ -19,13 +19,13 @@ type Library struct {
 	releases map[string]*discogs.Release
 }
 
-func NewLibrary(token string, db *DB) (*Library, error) {
-	if token == "" {
+func NewLibrary(discogsToken string, db *DB) (*Library, error) {
+	if discogsToken == "" {
 		return nil, errors.InvalidArgumentError("Token is empty")
 	}
 	client, err := discogs.New(&discogs.Options{
 		UserAgent: "Releases Watcher",
-		Token:     token,
+		Token:     discogsToken,
 		URL:       "https://api.discogs.com", // optional
 	})
 	if err != nil {
