@@ -8,18 +8,18 @@ package releaseswatcher
 
 // Injectors from wire.go:
 
-func InitializeApp(connection ConnectionString, token DiscogsToken, root RootPath) (Application, error) {
+func InitializeApp(connection ConnectionString, token DiscogsToken, root RootPath) (*Application, error) {
 	db, err := NewDB(connection)
 	if err != nil {
-		return Application{}, err
+		return nil, err
 	}
 	library, err := NewLibrary(token, db)
 	if err != nil {
-		return Application{}, err
+		return nil, err
 	}
 	watcher, err := NewWatcher(root, db, library)
 	if err != nil {
-		return Application{}, err
+		return nil, err
 	}
 	application := NewApplication(db, watcher)
 	return application, nil
@@ -35,8 +35,8 @@ type Application struct {
 func NewApplication(
 	db *DB,
 	watcher *Watcher,
-) Application {
-	return Application{
+) *Application {
+	return &Application{
 		DB:      db,
 		Watcher: watcher,
 	}

@@ -15,8 +15,8 @@ type Application struct {
 func NewApplication(
 	db *DB,
 	watcher *Watcher,
-) Application {
-	return Application{
+) *Application {
+	return &Application{
 		DB:      db,
 		Watcher: watcher,
 	}
@@ -26,7 +26,7 @@ func InitializeApp(
 	connection ConnectionString,
 	token DiscogsToken,
 	root RootPath,
-) (Application, error) {
+) (*Application, error) {
 	wire.Build(NewDB, NewLibrary, NewWatcher, NewApplication)
-	return Application{}, nil
+	return nil, nil
 }
