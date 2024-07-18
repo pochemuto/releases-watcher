@@ -27,6 +27,6 @@ func InitializeApp(
 	token DiscogsToken,
 	root RootPath,
 ) (*Application, error) {
-	wire.Build(NewDB, NewLibrary, NewWatcher, NewApplication)
+	wire.Build(NewDB, NewLibrary, NewWatcher, NewApplication, NewCache, NewPgxPool)
 	return nil, nil
 }

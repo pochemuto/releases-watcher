@@ -2,9 +2,6 @@ package releaseswatcher
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,16 +16,19 @@ type DB struct {
 
 type ConnectionString string
 
-func NewDB(connection ConnectionString) (*DB, error) {
+func NewPgxPool(connection ConnectionString) (*pgxpool.Pool, error) {
 	conn, err := pgxpool.New(context.Background(), string(connection))
 	if err != nil {
 		return nil, err
 	}
-
 	err = conn.Ping(context.Background())
 	if err != nil {
 		return nil, err
 	}
+	return conn, nil
+}
+
+func NewDB(conn *pgxpool.Pool) (*DB, error) {
 	return &DB{
 		conn:    conn,
 		queries: sqlc.New(conn),
@@ -87,87 +87,4 @@ func (db DB) GetActualAlbums(ctx context.Context) ([]sqlc.ActualAlbum, error) {
 
 func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
 	return db.queries.GetLocalArtists(ctx)
-}
-
-func GetAllCacheEntities[T any](db *DB, ctx context.Context,
-	entity string, freshness time.Duration) (map[string]*T, error) {
-	rows, err := db.getAllCacheEntities(ctx, entity, freshness)
-	if err != nil {
-		return nil, err
-	}
-	result := make(map[string]*T)
-	for id, data := range rows {
-		value := new(T)
-		json.Unmarshal(data, value)
-		result[id] = value
-	}
-	return result, nil
-}
-
-func GetCached[T any](db *DB, ctx context.Context,
-	entity string, id string, freshness time.Duration, fetcher func() (*T, error)) (*T, error) {
-	byte_fetcher := func() ([]byte, error) {
-		data, err := fetcher()
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(data)
-	}
-
-	data, err := db.getEntity(ctx, entity, id, freshness, byte_fetcher)
-	if err != nil {
-		return nil, err
-	}
-	result := new(T)
-	err = json.Unmarshal(data, result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (db DB) getAllCacheEntities(ctx context.Context,
-	entity string, freshness time.Duration) (map[string][]byte, error) {
-	// use iterator
-	// https://github.com/sqlc-dev/sqlc/issues/720
-	rows, err := db.queries.GetAll(ctx, entity)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[string][]byte)
-	for _, row := range rows {
-		result[row.ID] = row.Value
-	}
-	return result, nil
-}
-
-func (db DB) getEntity(ctx context.Context,
-	entity string, id string, freshness time.Duration, fetcher func() ([]byte, error)) ([]byte, error) {
-	result, err := db.queries.GetCache(ctx, sqlc.GetCacheParams{
-		Entity: entity,
-		ID:     id,
-	})
-	if err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			return nil, err
-		}
-
-		result, err = fetcher()
-		if err != nil {
-			return nil, err
-		}
-
-		err = db.queries.InsertCache(ctx, sqlc.InsertCacheParams{
-			Entity: entity,
-			ID:     id,
-			Value:  result,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return result, nil
-	}
-	return result, nil
 }

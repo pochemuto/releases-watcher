@@ -2,6 +2,7 @@ package releaseswatcher
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -32,11 +33,11 @@ func (w Watcher) UpdateActualLibrary() error {
 	artists, err := w.db.GetLocalArtists(context.Background())
 	log.Infof("Updating local library from Discogs for %d artists", len(artists))
 	if err != nil {
-		return err
+		return fmt.Errorf("error loading local artists: %w", err)
 	}
 	tx, err := w.db.StartUpdateActualAlbums(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("error starting transaction: %w", err)
 	}
 	defer tx.Commit(context.Background())
 	for i, artist := range artists {
@@ -65,7 +66,7 @@ func (w Watcher) UpdateActualLibrary() error {
 			err := w.db.InsertActualAlbum(context.Background(), tx, actualAlbum)
 			if err != nil {
 				tx.Rollback(context.Background())
-				return err
+				return fmt.Errorf("error inserting actual album: %w", err)
 			}
 		}
 	}

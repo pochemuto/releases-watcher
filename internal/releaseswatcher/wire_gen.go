@@ -9,11 +9,16 @@ package releaseswatcher
 // Injectors from wire.go:
 
 func InitializeApp(connection ConnectionString, token DiscogsToken, root RootPath) (*Application, error) {
-	db, err := NewDB(connection)
+	pool, err := NewPgxPool(connection)
 	if err != nil {
 		return nil, err
 	}
-	library, err := NewLibrary(token, db)
+	db, err := NewDB(pool)
+	if err != nil {
+		return nil, err
+	}
+	cache := NewCache(pool)
+	library, err := NewLibrary(token, db, cache)
 	if err != nil {
 		return nil, err
 	}
