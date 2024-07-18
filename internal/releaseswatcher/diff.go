@@ -3,18 +3,28 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/pochemuto/releases-watcher/sqlc"
 )
 
 type Differ struct {
-	db *DB
+	db          *DB
+	cutoff_year int
 }
 
 func NewDiffer(db *DB) *Differ {
-	return &Differ{db: db}
+	cutoff_year, err := strconv.Atoi(os.Getenv("ALBUMS_CUTOFF_YEAR"))
+	if err != nil {
+		log.Warnf("Error parsing ALBUMS_CUTOFF_YEAR: %v", err)
+	}
+	return &Differ{
+		db:          db,
+		cutoff_year: cutoff_year,
+	}
 }
 
 func toAlbum(ea sqlc.ExcludedAlbum) sqlc.Album {
@@ -57,6 +67,7 @@ func (d *Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum) ([]sqlc.Act
 		excludedArtistMap[normalized] = true
 	}
 
+	log.Infof("Filtering albums released since %d", d.cutoff_year)
 	// Iterate over actual albums and check if they exist in the map or are excluded.
 	result := make([]sqlc.ActualAlbum, 0)
 	for _, actual := range actual {

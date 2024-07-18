@@ -25,7 +25,12 @@ func ReadID3(filepath string) (tag.Metadata, error) {
 }
 
 func Scan(root string, filenames chan<- string, counter *atomic.Int32) error {
+	exluded_path := os.Getenv("EXCLUDED_PATH")
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if path == exluded_path {
+			log.Infof("Skipping dir %v", path)
+			return filepath.SkipDir
+		}
 		if d.IsDir() {
 			return nil
 		}
