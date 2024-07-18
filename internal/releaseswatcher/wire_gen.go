@@ -26,7 +26,8 @@ func InitializeApp(connection ConnectionString, token DiscogsToken, root RootPat
 	if err != nil {
 		return nil, err
 	}
-	application := NewApplication(db, watcher)
+	differ := NewDiffer(db)
+	application := NewApplication(db, watcher, differ)
 	return application, nil
 }
 
@@ -35,14 +36,17 @@ func InitializeApp(connection ConnectionString, token DiscogsToken, root RootPat
 type Application struct {
 	DB      *DB
 	Watcher *Watcher
+	Differ  *Differ
 }
 
 func NewApplication(
 	db *DB,
 	watcher *Watcher,
+	differ *Differ,
 ) *Application {
 	return &Application{
 		DB:      db,
 		Watcher: watcher,
+		Differ:  differ,
 	}
 }

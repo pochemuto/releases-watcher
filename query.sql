@@ -29,3 +29,6 @@ SELECT value FROM cache WHERE entity = $1 AND id = $2;
 
 -- name: InsertCache :exec
 INSERT INTO cache (entity, id, value) VALUES ($1, $2, $3);
+
+-- name: GetExcludedArtists :many
+SELECT artist FROM excluded_artist;

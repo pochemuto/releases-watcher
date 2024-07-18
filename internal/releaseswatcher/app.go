@@ -33,7 +33,7 @@ func App(updateLocal *bool, updateActual *bool) error {
 	if err != nil {
 		return fmt.Errorf("app initialization error: %w", err)
 	}
-	db, watcher := app.DB, app.Watcher
+	db, watcher, differ := app.DB, app.Watcher, app.Differ
 	defer db.Disconnect()
 
 	if *updateLocal {
@@ -65,26 +65,10 @@ func App(updateLocal *bool, updateActual *bool) error {
 		{Artist: "Justice", Name: "Woman Worldwide"},
 	}
 
-	excludedArtists := []string{
-		"Oasis",
-		"Skillet",
-		"Red",
-		"Juno Reactor",
-		"GMS",
-		"Klaxons",
-		"Matt & Kim",
-		"Sum 41",
-		"Three Days Grace",
-		"Michael Jackson",
-		"Maxim",
-		"Papa Roach",
-		"Evanescence",
-		"Fireflight",
-		"Venetian Snares",
-		"The Naked and Famous",
+	newAlbums, err := differ.Diff(local, actual, excludedAlbums)
+	if err != nil {
+		return fmt.Errorf("error making diff: %w", err)
 	}
-
-	newAlbums := Diff(local, actual, excludedAlbums, excludedArtists)
 	albumCount := 0
 	// Sort newAlbums by Year in descending order
 	sort.Slice(newAlbums, func(i, j int) bool {

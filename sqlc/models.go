@@ -27,3 +27,7 @@ type Cache struct {
 	Value  []byte
 	Ts     pgtype.Timestamp
 }
+
+type ExcludedArtist struct {
+	Artist string
+}

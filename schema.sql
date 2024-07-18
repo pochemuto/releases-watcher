@@ -40,3 +40,9 @@ CREATE TABLE public."cache" (
 	ts timestamp DEFAULT CURRENT_TIMESTAMP NULL,
 	CONSTRAINT cache_pk PRIMARY KEY (entity, id)
 );
+
+
+CREATE TABLE public."excluded_artist" (
+	"artist" varchar NOT NULL,
+	PRIMARY KEY ("artist")
+);

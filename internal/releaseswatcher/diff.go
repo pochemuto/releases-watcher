@@ -1,14 +1,29 @@
 package releaseswatcher
 
 import (
+	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/pochemuto/releases-watcher/sqlc"
 )
 
+type Differ struct {
+	db *DB
+}
+
+func NewDiffer(db *DB) *Differ {
+	return &Differ{db: db}
+}
+
 // Diff function with excluded albums and artists
-func Diff(local []sqlc.Album, actual []sqlc.ActualAlbum, excludedAlbums []sqlc.Album, excludedArtists []string) []sqlc.ActualAlbum {
+func (d *Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum, excludedAlbums []sqlc.Album) ([]sqlc.ActualAlbum, error) {
+	excludedArtists, err := d.db.queries.GetExcludedArtists(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("error when loading excluded artists: %w", err)
+	}
+	log.Infof("Excluded artists %d", len(excludedArtists))
 	// Create a map of normalized local albums for faster lookup.
 	localMap := make(map[sqlc.Album]bool)
 	for _, local := range local {
@@ -65,7 +80,7 @@ func Diff(local []sqlc.Album, actual []sqlc.ActualAlbum, excludedAlbums []sqlc.A
 		result = append(result, actual)
 	}
 
-	return result
+	return result, nil
 }
 
 func normalize(a sqlc.Album) sqlc.Album {

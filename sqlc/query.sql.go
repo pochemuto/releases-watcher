@@ -102,6 +102,30 @@ func (q *Queries) GetCache(ctx context.Context, arg GetCacheParams) ([]byte, err
 	return value, err
 }
 
+const getExcludedArtists = `-- name: GetExcludedArtists :many
+SELECT artist FROM excluded_artist
+`
+
+func (q *Queries) GetExcludedArtists(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, getExcludedArtists)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var artist string
+		if err := rows.Scan(&artist); err != nil {
+			return nil, err
+		}
+		items = append(items, artist)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLocalAlbums = `-- name: GetLocalAlbums :many
 SELECT artist, name FROM album
 `
