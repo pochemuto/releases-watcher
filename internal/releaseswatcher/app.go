@@ -7,7 +7,6 @@ import (
 	"sort"
 
 	"github.com/joho/godotenv"
-	"github.com/pochemuto/releases-watcher/sqlc"
 )
 
 func App(updateLocal *bool, updateActual *bool) error {
@@ -58,14 +57,7 @@ func App(updateLocal *bool, updateActual *bool) error {
 		return fmt.Errorf("error loading actual albums: %w", err)
 	}
 
-	excludedAlbums := []sqlc.Album{
-		{Artist: "Jamie XX", Name: "In Colours"},
-		{Artist: "Bran Van 3000", Name: "The Garden"},
-		{Artist: "Bran Van 3000", Name: "The Garden"},
-		{Artist: "Justice", Name: "Woman Worldwide"},
-	}
-
-	newAlbums, err := differ.Diff(local, actual, excludedAlbums)
+	newAlbums, err := differ.Diff(local, actual)
 	if err != nil {
 		return fmt.Errorf("error making diff: %w", err)
 	}

@@ -28,6 +28,11 @@ type Cache struct {
 	Ts     pgtype.Timestamp
 }
 
+type ExcludedAlbum struct {
+	Artist string
+	Album  string
+}
+
 type ExcludedArtist struct {
 	Artist string
 }

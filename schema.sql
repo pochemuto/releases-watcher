@@ -46,3 +46,9 @@ CREATE TABLE public."excluded_artist" (
 	"artist" varchar NOT NULL,
 	PRIMARY KEY ("artist")
 );
+
+CREATE TABLE "public"."excluded_album" (
+    "artist" varchar NOT NULL,
+    "album" varchar NOT NULL,
+	PRIMARY KEY ("artist", "album")
+);

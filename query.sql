@@ -32,3 +32,6 @@ INSERT INTO cache (entity, id, value) VALUES ($1, $2, $3);
 
 -- name: GetExcludedArtists :many
 SELECT artist FROM excluded_artist;
+
+-- name: GetExcludedAlbums :many
+SELECT artist, album FROM excluded_album;

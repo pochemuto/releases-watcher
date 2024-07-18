@@ -17,13 +17,25 @@ func NewDiffer(db *DB) *Differ {
 	return &Differ{db: db}
 }
 
+func toAlbum(ea sqlc.ExcludedAlbum) sqlc.Album {
+	return sqlc.Album{
+		Artist: ea.Artist,
+		Name:   ea.Album,
+	}
+}
+
 // Diff function with excluded albums and artists
-func (d *Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum, excludedAlbums []sqlc.Album) ([]sqlc.ActualAlbum, error) {
+func (d *Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum) ([]sqlc.ActualAlbum, error) {
 	excludedArtists, err := d.db.queries.GetExcludedArtists(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error when loading excluded artists: %w", err)
 	}
 	log.Infof("Excluded artists %d", len(excludedArtists))
+	excludedAlbums, err := d.db.queries.GetExcludedAlbums(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("error when loading excluded albums: %w", err)
+	}
+	log.Infof("Excluded albums %d", len(excludedAlbums))
 	// Create a map of normalized local albums for faster lookup.
 	localMap := make(map[sqlc.Album]bool)
 	for _, local := range local {
@@ -34,7 +46,7 @@ func (d *Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum, excludedAlb
 	// Create a set of normalized excluded albums for faster lookup.
 	excludedAlbumMap := make(map[sqlc.Album]bool)
 	for _, album := range excludedAlbums {
-		normalized := normalize(album)
+		normalized := normalize(toAlbum(album))
 		excludedAlbumMap[normalized] = true
 	}
 
