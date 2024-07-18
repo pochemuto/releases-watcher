@@ -83,7 +83,8 @@ func (d *Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum) ([]sqlc.Act
 			continue
 		}
 		if strings.HasPrefix(*actual.Name, "Live ") ||
-			strings.HasSuffix(*actual.Name, " Live") {
+			strings.HasSuffix(*actual.Name, " Live") ||
+			strings.Contains(*actual.Name, "Live At") {
 			continue
 		}
 
