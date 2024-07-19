@@ -8,23 +8,23 @@ package releaseswatcher
 
 // Injectors from wire.go:
 
-func InitializeApp(connection ConnectionString, token DiscogsToken, root RootPath) (*Application, error) {
+func InitializeApp(connection ConnectionString, token DiscogsToken, root RootPath) (Application, error) {
 	pool, err := NewPgxPool(connection)
 	if err != nil {
-		return nil, err
+		return Application{}, err
 	}
 	db, err := NewDB(pool)
 	if err != nil {
-		return nil, err
+		return Application{}, err
 	}
 	cache := NewCache(pool)
 	library, err := NewLibrary(token, db, cache)
 	if err != nil {
-		return nil, err
+		return Application{}, err
 	}
 	watcher, err := NewWatcher(root, db, library)
 	if err != nil {
-		return nil, err
+		return Application{}, err
 	}
 	differ := NewDiffer(db)
 	application := NewApplication(db, watcher, differ)
@@ -34,17 +34,17 @@ func InitializeApp(connection ConnectionString, token DiscogsToken, root RootPat
 // wire.go:
 
 type Application struct {
-	DB      *DB
-	Watcher *Watcher
-	Differ  *Differ
+	DB      DB
+	Watcher Watcher
+	Differ  Differ
 }
 
 func NewApplication(
-	db *DB,
-	watcher *Watcher,
-	differ *Differ,
-) *Application {
-	return &Application{
+	db DB,
+	watcher Watcher,
+	differ Differ,
+) Application {
+	return Application{
 		DB:      db,
 		Watcher: watcher,
 		Differ:  differ,

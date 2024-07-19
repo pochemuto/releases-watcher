@@ -16,14 +16,14 @@ type Cache struct {
 	queries *sqlc.Queries
 }
 
-func NewCache(conn *pgxpool.Pool) *Cache {
-	return &Cache{
+func NewCache(conn *pgxpool.Pool) Cache {
+	return Cache{
 		conn:    conn,
 		queries: sqlc.New(conn),
 	}
 }
 
-func GetAllCacheEntities[T any](c *Cache, ctx context.Context,
+func GetAllCacheEntities[T any](c Cache, ctx context.Context,
 	entity string, freshness time.Duration) (map[string]*T, error) {
 	rows, err := c.getAllCacheEntities(ctx, entity, freshness)
 	if err != nil {
@@ -38,7 +38,7 @@ func GetAllCacheEntities[T any](c *Cache, ctx context.Context,
 	return result, nil
 }
 
-func GetCached[T any](c *Cache, ctx context.Context,
+func GetCached[T any](c Cache, ctx context.Context,
 	entity string, id string, freshness time.Duration, fetcher func() (*T, error)) (*T, error) {
 	byte_fetcher := func() ([]byte, error) {
 		data, err := fetcher()
@@ -60,7 +60,7 @@ func GetCached[T any](c *Cache, ctx context.Context,
 	return result, nil
 }
 
-func (c *Cache) getAllCacheEntities(ctx context.Context,
+func (c Cache) getAllCacheEntities(ctx context.Context,
 	entity string, freshness time.Duration) (map[string][]byte, error) {
 	// use iterator
 	// https://github.com/sqlc-dev/sqlc/issues/720
@@ -76,7 +76,7 @@ func (c *Cache) getAllCacheEntities(ctx context.Context,
 	return result, nil
 }
 
-func (c *Cache) getEntity(ctx context.Context,
+func (c Cache) getEntity(ctx context.Context,
 	entity string, id string, freshness time.Duration, fetcher func() ([]byte, error)) ([]byte, error) {
 	result, err := c.queries.GetCache(ctx, sqlc.GetCacheParams{
 		Entity: entity,

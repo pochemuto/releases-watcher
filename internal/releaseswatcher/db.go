@@ -28,8 +28,8 @@ func NewPgxPool(connection ConnectionString) (*pgxpool.Pool, error) {
 	return conn, nil
 }
 
-func NewDB(conn *pgxpool.Pool) (*DB, error) {
-	return &DB{
+func NewDB(conn *pgxpool.Pool) (DB, error) {
+	return DB{
 		conn:    conn,
 		queries: sqlc.New(conn),
 	}, nil

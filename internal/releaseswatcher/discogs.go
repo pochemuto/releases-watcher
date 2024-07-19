@@ -12,19 +12,23 @@ import (
 	"golang.org/x/time/rate"
 )
 
-type Library struct {
-	db       *DB
-	cache    *Cache
-	discogs  discogs.Discogs
-	limiter  *rate.Limiter
+type cached struct {
 	releases map[string]*discogs.Release
+}
+
+type Library struct {
+	db      DB
+	cache   Cache
+	discogs discogs.Discogs
+	limiter *rate.Limiter
+	cached  *cached
 }
 
 type DiscogsToken string
 
-func NewLibrary(token DiscogsToken, db *DB, cache *Cache) (*Library, error) {
+func NewLibrary(token DiscogsToken, db DB, cache Cache) (Library, error) {
 	if token == "" {
-		return nil, errors.InvalidArgumentError("Token is empty")
+		return Library{}, errors.InvalidArgumentError("Token is empty")
 	}
 	client, err := discogs.New(&discogs.Options{
 		UserAgent: "Releases Watcher",
@@ -32,33 +36,34 @@ func NewLibrary(token DiscogsToken, db *DB, cache *Cache) (*Library, error) {
 		URL:       "https://api.discogs.com", // optional
 	})
 	if err != nil {
-		return nil, err
+		return Library{}, err
 	}
-	return &Library{
+	return Library{
 		db:      db,
 		cache:   cache,
 		discogs: client,
 		limiter: rate.NewLimiter(50*rate.Every(time.Minute), 1),
+		cached:  &cached{},
 	}, nil
 }
 
-func (l *Library) api() discogs.Discogs {
+func (l Library) api() discogs.Discogs {
 	l.limiter.Wait(context.Background())
 	return l.discogs
 }
 
-func (l *Library) getRelease(releaseID int) (*discogs.Release, error) {
+func (l Library) getRelease(releaseID int) (*discogs.Release, error) {
 	id := strconv.Itoa(releaseID)
 	freshness := 10 * 24 * time.Hour
-	if l.releases == nil {
+	if l.cached.releases == nil {
 		var err error
-		l.releases, err = GetAllCacheEntities[discogs.Release](l.cache, context.TODO(), "discogs_release", freshness)
+		l.cached.releases, err = GetAllCacheEntities[discogs.Release](l.cache, context.TODO(), "discogs_release", freshness)
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("Loaded %d releases from cache", len(l.releases))
+		log.Infof("Loaded %d releases from cache", len(l.cached.releases))
 	}
-	if release, ok := l.releases[id]; ok {
+	if release, ok := l.cached.releases[id]; ok {
 		log.Tracef("Loaded release %d from cache", releaseID)
 		return release, nil
 	}
@@ -68,7 +73,7 @@ func (l *Library) getRelease(releaseID int) (*discogs.Release, error) {
 		})
 }
 
-func (l *Library) getArtistID(artist string) (int, error) {
+func (l Library) getArtistID(artist string) (int, error) {
 	search, err := GetCached(l.cache, context.TODO(), "discogs_artist_search", artist, 10*24*time.Hour, func() (*discogs.Search, error) {
 		request := discogs.SearchRequest{Type: "artist", Q: artist, PerPage: 300}
 		return l.api().Search(request)
@@ -82,7 +87,7 @@ func (l *Library) getArtistID(artist string) (int, error) {
 	return search.Results[0].ID, nil
 }
 
-func (l *Library) getArtistReleases(artistID int, page int) (*discogs.ArtistReleases, error) {
+func (l Library) getArtistReleases(artistID int, page int) (*discogs.ArtistReleases, error) {
 	id := fmt.Sprintf("%d_%d", artistID, page)
 	return GetCached(l.cache, context.TODO(), "discord_artist_releases",
 		id, 10*24*time.Hour, func() (*discogs.ArtistReleases, error) {
@@ -91,7 +96,7 @@ func (l *Library) getArtistReleases(artistID int, page int) (*discogs.ArtistRele
 		})
 }
 
-func (l *Library) GetReleases(artist string) ([]discogs.Release, error) {
+func (l Library) GetReleases(artist string) ([]discogs.Release, error) {
 	artistID, err := l.getArtistID(artist)
 	if err != nil {
 		return nil, err

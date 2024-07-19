@@ -20,13 +20,13 @@ var log = logrus.New()
 type RootPath string
 
 type Watcher struct {
-	db   *DB
-	lib  *Library
+	db   DB
+	lib  Library
 	root RootPath
 }
 
-func NewWatcher(root RootPath, db *DB, lib *Library) (*Watcher, error) {
-	return &Watcher{root: root, db: db, lib: lib}, nil
+func NewWatcher(root RootPath, db DB, lib Library) (Watcher, error) {
+	return Watcher{root: root, db: db, lib: lib}, nil
 }
 
 func (w Watcher) UpdateActualLibrary() error {
@@ -50,9 +50,11 @@ func (w Watcher) UpdateActualLibrary() error {
 		for _, release := range releases {
 			kind := getKind(release)
 			if kind == "" {
+				log.Tracef("Unknown kind of release %v, skipped", release)
 				continue
 			}
 			if isSoundtrack(release) {
+				log.Tracef("Release %v is a soundtrack, skipped", release)
 				continue
 			}
 			year := int32(release.Year)

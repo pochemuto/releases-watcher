@@ -12,16 +12,16 @@ import (
 )
 
 type Differ struct {
-	db          *DB
+	db          DB
 	cutoff_year int
 }
 
-func NewDiffer(db *DB) *Differ {
+func NewDiffer(db DB) Differ {
 	cutoff_year, err := strconv.Atoi(os.Getenv("ALBUMS_CUTOFF_YEAR"))
 	if err != nil {
 		log.Warnf("Error parsing ALBUMS_CUTOFF_YEAR: %v", err)
 	}
-	return &Differ{
+	return Differ{
 		db:          db,
 		cutoff_year: cutoff_year,
 	}
@@ -35,7 +35,7 @@ func toAlbum(ea sqlc.ExcludedAlbum) sqlc.Album {
 }
 
 // Diff function with excluded albums and artists
-func (d *Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum) ([]sqlc.ActualAlbum, error) {
+func (d Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum) ([]sqlc.ActualAlbum, error) {
 	excludedArtists, err := d.db.queries.GetExcludedArtists(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error when loading excluded artists: %w", err)
@@ -80,11 +80,13 @@ func (d *Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum) ([]sqlc.Act
 			strings.Contains(*actual.Name, "Remaster") ||
 			strings.Contains(*actual.Name, "Soundtrack") ||
 			strings.Contains(*actual.Name, "Motion Picture") {
+			log.Tracef("Album %s is remix, skipped", *actual.Name)
 			continue
 		}
 		if strings.HasPrefix(*actual.Name, "Live ") ||
 			strings.HasSuffix(*actual.Name, " Live") ||
 			strings.Contains(*actual.Name, "Live At") {
+			log.Tracef("Album %s is live, skipped", *actual.Name)
 			continue
 		}
 
