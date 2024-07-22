@@ -35,7 +35,16 @@ func toAlbum(ea sqlc.ExcludedAlbum) sqlc.Album {
 }
 
 // Diff function with excluded albums and artists
-func (d Differ) Diff(local []sqlc.Album, actual []sqlc.ActualAlbum) ([]sqlc.ActualAlbum, error) {
+func (d Differ) Diff() ([]sqlc.ActualAlbum, error) {
+	local, err := d.db.GetLocalAlbums(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("error loading local albums: %w", err)
+	}
+	actual, err := d.db.GetActualAlbums(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("error loading actual albums: %w", err)
+	}
+
 	excludedArtists, err := d.db.queries.GetExcludedArtists(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error when loading excluded artists: %w", err)
