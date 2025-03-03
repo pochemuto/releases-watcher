@@ -12,18 +12,18 @@ import (
 )
 
 type Differ struct {
-	db          DB
-	cutoff_year int
+	db         DB
+	cutoffYear int
 }
 
 func NewDiffer(db DB) Differ {
-	cutoff_year, err := strconv.Atoi(os.Getenv("ALBUMS_CUTOFF_YEAR"))
+	cutoffYear, err := strconv.Atoi(os.Getenv("ALBUMS_CUTOFF_YEAR"))
 	if err != nil {
 		log.Warnf("Error parsing ALBUMS_CUTOFF_YEAR: %v", err)
 	}
 	return Differ{
-		db:          db,
-		cutoff_year: cutoff_year,
+		db:         db,
+		cutoffYear: cutoffYear,
 	}
 }
 
@@ -76,7 +76,7 @@ func (d Differ) Diff() ([]sqlc.ActualAlbum, error) {
 		excludedArtistMap[normalized] = true
 	}
 
-	log.Infof("Filtering albums released since %d", d.cutoff_year)
+	log.Infof("Filtering albums released since %d", d.cutoffYear)
 	// Iterate over actual albums and check if they exist in the map or are excluded.
 	result := make([]sqlc.ActualAlbum, 0)
 	for _, actual := range actual {
