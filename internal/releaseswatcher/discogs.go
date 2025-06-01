@@ -3,6 +3,7 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -97,7 +98,7 @@ func (l Library) getArtistReleases(artistID int, page int) (*discogs.ArtistRelea
 		})
 }
 
-func (l Library) GetReleases(artist string) ([]discogs.Release, error) {
+func (l Library) getReleases(artist string) ([]discogs.Release, error) {
 	artistID, err := l.getArtistID(artist)
 	if err != nil {
 		return nil, err
@@ -145,7 +146,7 @@ func (l Library) GetActualAlbumsForArtists(artists []string) ([]sqlc.ActualAlbum
 	var actualAlbums []sqlc.ActualAlbum
 	for i, artist := range artists {
 		log.Tracef("Fetching for %s [%d of %d]", artist, i+1, len(artists))
-		releases, err := l.GetReleases(artist)
+		releases, err := l.getReleases(artist)
 		if err != nil {
 			log.Errorf("Error when processing artist '%v': %v", artist, err)
 			continue
@@ -203,4 +204,21 @@ func isCompilation(release *discogs.Release) bool {
 
 func isMainArtist(release *discogs.Release, artistID int) bool {
 	return release.Artists[0].ID == artistID
+}
+
+func isSoundtrack(release discogs.Release) bool {
+	return slices.Contains(release.Styles, "Soundtrack")
+}
+
+func getKind(release discogs.Release) string {
+	if isAlbum(&release) {
+		return "album"
+	}
+	if isSingle(&release) {
+		return "single"
+	}
+	if isEP(&release) {
+		return "EP"
+	}
+	return ""
 }
