@@ -17,17 +17,17 @@ var log = logrus.New()
 
 type RootPath string
 
-type LibraryInterface interface {
+type Library interface {
 	GetActualAlbumsForArtists(artists []string) ([]sqlc.ActualAlbum, error)
 }
 
 type Watcher struct {
 	db   DB
-	lib  LibraryInterface
+	lib  Library
 	root RootPath
 }
 
-func NewWatcher(root RootPath, db DB, lib LibraryInterface) (Watcher, error) {
+func NewWatcher(root RootPath, db DB, lib Library) (Watcher, error) {
 	return Watcher{root: root, db: db, lib: lib}, nil
 }
 

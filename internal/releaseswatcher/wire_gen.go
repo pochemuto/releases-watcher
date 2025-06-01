@@ -24,7 +24,7 @@ func initializeApp(connection ConnectionString, token DiscogsToken, root RootPat
 		return Application{}, err
 	}
 	cache := NewCache(pool)
-	library, err := NewLibrary(token, db, cache)
+	library, err := NewDiscogsLibrary(token, db, cache)
 	if err != nil {
 		return Application{}, err
 	}
