@@ -35,44 +35,23 @@ func (w Watcher) UpdateActualLibrary() error {
 	if err != nil {
 		return fmt.Errorf("error loading local artists: %w", err)
 	}
+	actualAlbums, err := w.lib.GetActualAlbumsForArtists(artists)
+	if err != nil {
+		return fmt.Errorf("error getting actual albums: %w", err)
+	}
 	tx, err := w.db.StartUpdateActualAlbums(context.Background())
 	if err != nil {
 		return fmt.Errorf("error starting transaction: %w", err)
 	}
 	defer tx.Commit(context.Background())
-	for i, artist := range artists {
-		log.Tracef("Fetching for %s [%d of %d]", artist, i+1, len(artists))
-		releases, err := w.lib.GetReleases(artist)
+	for _, actualAlbum := range actualAlbums {
+		err := w.db.InsertActualAlbum(context.Background(), tx, actualAlbum)
 		if err != nil {
-			log.Errorf("Error when processing artist '%v': %v", artist, err)
-			continue
-		}
-		for _, release := range releases {
-			kind := getKind(release)
-			if kind == "" {
-				log.Tracef("Unknown kind of release %v, skipped", release)
-				continue
-			}
-			if isSoundtrack(release) {
-				log.Tracef("Release %v is a soundtrack, skipped", release)
-				continue
-			}
-			year := int32(release.Year)
-			actualAlbum := sqlc.ActualAlbum{
-				ID:     int64(release.ID),
-				Artist: &artist,
-				Name:   &release.Title,
-				Year:   &year,
-				Kind:   &kind,
-			}
-			err := w.db.InsertActualAlbum(context.Background(), tx, actualAlbum)
-			if err != nil {
-				tx.Rollback(context.Background())
-				return fmt.Errorf("error inserting actual album: %w", err)
-			}
+			tx.Rollback(context.Background())
+			return fmt.Errorf("error inserting actual album: %w", err)
 		}
 	}
-	return err
+	return nil
 }
 
 func (w Watcher) UpdateLocalLibrary() error {

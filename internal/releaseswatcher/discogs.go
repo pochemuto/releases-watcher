@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/irlndts/go-discogs"
+	"github.com/pochemuto/releases-watcher/sqlc"
 	"golang.org/x/crypto/openpgp/errors"
 	"golang.org/x/time/rate"
 )
@@ -137,6 +138,40 @@ func (l Library) GetReleases(artist string) ([]discogs.Release, error) {
 
 	}
 	return releases, nil
+}
+
+// GetActualAlbumsForArtists получает актуальные альбомы для списка артистов
+func (l Library) GetActualAlbumsForArtists(artists []string) ([]sqlc.ActualAlbum, error) {
+	var actualAlbums []sqlc.ActualAlbum
+	for i, artist := range artists {
+		log.Tracef("Fetching for %s [%d of %d]", artist, i+1, len(artists))
+		releases, err := l.GetReleases(artist)
+		if err != nil {
+			log.Errorf("Error when processing artist '%v': %v", artist, err)
+			continue
+		}
+		for _, release := range releases {
+			kind := getKind(release)
+			if kind == "" {
+				log.Tracef("Unknown kind of release %v, skipped", release)
+				continue
+			}
+			if isSoundtrack(release) {
+				log.Tracef("Release %v is a soundtrack, skipped", release)
+				continue
+			}
+			year := int32(release.Year)
+			actualAlbum := sqlc.ActualAlbum{
+				ID:     int64(release.ID),
+				Artist: &artist,
+				Name:   &release.Title,
+				Year:   &year,
+				Kind:   &kind,
+			}
+			actualAlbums = append(actualAlbums, actualAlbum)
+		}
+	}
+	return actualAlbums, nil
 }
 
 func isReleaseType(release *discogs.Release, releaseType string) bool {
