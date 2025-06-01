@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"go.uploadedlobster.com/musicbrainzws2"
-	mbtypes "go.uploadedlobster.com/mbtypes"
 	"github.com/pochemuto/releases-watcher/sqlc"
+	mbtypes "go.uploadedlobster.com/mbtypes"
+	"go.uploadedlobster.com/musicbrainzws2"
 	"golang.org/x/time/rate"
 )
 
