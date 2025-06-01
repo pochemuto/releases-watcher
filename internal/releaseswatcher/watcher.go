@@ -17,13 +17,17 @@ var log = logrus.New()
 
 type RootPath string
 
+type LibraryInterface interface {
+	GetActualAlbumsForArtists(artists []string) ([]sqlc.ActualAlbum, error)
+}
+
 type Watcher struct {
 	db   DB
-	lib  Library
+	lib  LibraryInterface
 	root RootPath
 }
 
-func NewWatcher(root RootPath, db DB, lib Library) (Watcher, error) {
+func NewWatcher(root RootPath, db DB, lib LibraryInterface) (Watcher, error) {
 	return Watcher{root: root, db: db, lib: lib}, nil
 }
 
@@ -63,7 +67,7 @@ func (w Watcher) UpdateLocalLibrary() error {
 
 	var wg sync.WaitGroup
 
-	for i := 0; i < ReadWorkers; i++ {
+	for range ReadWorkers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
