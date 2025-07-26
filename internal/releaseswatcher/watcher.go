@@ -37,7 +37,21 @@ func (w Watcher) UpdateActualLibrary() error {
 	if err != nil {
 		return fmt.Errorf("error loading local artists: %w", err)
 	}
-	actualAlbums, err := w.lib.GetActualAlbumsForArtists(artists)
+
+	excludedArtists, err := w.db.GetExcludedArtists(context.Background())
+	if err != nil {
+		return fmt.Errorf("error loading excluded artists: %w", err)
+	}
+
+	// Filter out excluded artists
+	filteredArtists := []string{}
+	for _, artist := range artists {
+		if !contains(excludedArtists, artist) {
+			filteredArtists = append(filteredArtists, artist)
+		}
+	}
+
+	actualAlbums, err := w.lib.GetActualAlbumsForArtists(filteredArtists)
 	if err != nil {
 		return fmt.Errorf("error getting actual albums: %w", err)
 	}
@@ -114,4 +128,13 @@ func (w Watcher) UpdateLocalLibrary() error {
 	}
 
 	return nil
+}
+
+func contains(slice []string, item string) bool {
+	for _, a := range slice {
+		if a == item {
+			return true
+		}
+	}
+	return false
 }

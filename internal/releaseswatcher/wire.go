@@ -41,16 +41,16 @@ func InitializeApplication() (Application, error) {
 	if connectionString == "" {
 		return Application{}, fmt.Errorf("provide a connection string PGCONNECTION")
 	}
-	discogsToken := DiscogsToken(os.Getenv("DISCOGS_TOKEN"))
-	if discogsToken == "" {
-		return Application{}, fmt.Errorf("provide a DISCOGS_TOKEN")
+	musicbrainzToken := MusicBrainzToken(os.Getenv("MUSICBRAINZ_TOKEN"))
+	if musicbrainzToken == "" {
+		return Application{}, fmt.Errorf("provide a MUSICBRAINZ_TOKEN")
 	}
 	root := RootPath(os.Getenv("ROOT"))
 	if root == "" {
 		return Application{}, fmt.Errorf("provide a ROOT")
 	}
 
-	app, err := initializeApp(connectionString, discogsToken, root)
+	app, err := initializeApp(connectionString, musicbrainzToken, root)
 	if err != nil {
 		return Application{}, fmt.Errorf("app initialization error: %w", err)
 	}
@@ -60,11 +60,12 @@ func InitializeApplication() (Application, error) {
 
 func initializeApp(
 	connection ConnectionString,
-	token DiscogsToken,
+	token MusicBrainzToken,
 	root RootPath,
 ) (Application, error) {
 	wire.Build(NewDB,
-		NewLibrary,
+		NewMusicBrainzLibrary,
+		wire.Bind(new(Library), new(MusicBrainzLibrary)),
 		NewWatcher,
 		NewApplication,
 		NewCache,

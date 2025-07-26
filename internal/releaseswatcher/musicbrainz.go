@@ -82,6 +82,7 @@ func (l MusicBrainzLibrary) getArtistReleaseGroups(artistID string, offset int) 
 		if err != nil {
 			return nil, err
 		}
+		fmt.Printf("Found %d releases\n", len(res.ReleaseGroups))
 		return &res, nil
 	})
 }
@@ -94,6 +95,7 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 	releases := make([]musicbrainzws2.Release, 0)
 	offset := 0
 	for {
+		fmt.Printf("Checking releases for artist %s (offset %d)\n", artist, offset)
 		resp, err := l.getArtistReleaseGroups(artistID, offset)
 		if err != nil {
 			return nil, err

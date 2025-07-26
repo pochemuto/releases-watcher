@@ -88,3 +88,7 @@ func (db DB) GetActualAlbums(ctx context.Context) ([]sqlc.ActualAlbum, error) {
 func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
 	return db.queries.GetLocalArtists(ctx)
 }
+
+func (db DB) GetExcludedArtists(ctx context.Context) ([]string, error) {
+	return db.queries.GetExcludedArtists(ctx)
+}

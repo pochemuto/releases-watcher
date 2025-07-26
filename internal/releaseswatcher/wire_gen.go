@@ -14,7 +14,7 @@ import (
 
 // Injectors from wire.go:
 
-func initializeApp(connection ConnectionString, token DiscogsToken, root RootPath) (Application, error) {
+func initializeApp(connection ConnectionString, token MusicBrainzToken, root RootPath) (Application, error) {
 	pool, err := NewPgxPool(connection)
 	if err != nil {
 		return Application{}, err
@@ -24,11 +24,11 @@ func initializeApp(connection ConnectionString, token DiscogsToken, root RootPat
 		return Application{}, err
 	}
 	cache := NewCache(pool)
-	library, err := NewDiscogsLibrary(token, db, cache)
+	musicBrainzLibrary, err := NewMusicBrainzLibrary(token, db, cache)
 	if err != nil {
 		return Application{}, err
 	}
-	watcher, err := NewWatcher(root, db, library)
+	watcher, err := NewWatcher(root, db, musicBrainzLibrary)
 	if err != nil {
 		return Application{}, err
 	}
@@ -67,16 +67,16 @@ func InitializeApplication() (Application, error) {
 	if connectionString == "" {
 		return Application{}, fmt.Errorf("provide a connection string PGCONNECTION")
 	}
-	discogsToken := DiscogsToken(os.Getenv("DISCOGS_TOKEN"))
-	if discogsToken == "" {
-		return Application{}, fmt.Errorf("provide a DISCOGS_TOKEN")
+	musicbrainzToken := MusicBrainzToken(os.Getenv("MUSICBRAINZ_TOKEN"))
+	if musicbrainzToken == "" {
+		return Application{}, fmt.Errorf("provide a MUSICBRAINZ_TOKEN")
 	}
 	root := RootPath(os.Getenv("ROOT"))
 	if root == "" {
 		return Application{}, fmt.Errorf("provide a ROOT")
 	}
 
-	app, err := initializeApp(connectionString, discogsToken, root)
+	app, err := initializeApp(connectionString, musicbrainzToken, root)
 	if err != nil {
 		return Application{}, fmt.Errorf("app initialization error: %w", err)
 	}
