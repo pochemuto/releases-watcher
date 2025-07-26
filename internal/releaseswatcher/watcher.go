@@ -52,6 +52,7 @@ func (w Watcher) UpdateActualLibrary() error {
 	}
 
 	actualAlbums, err := w.lib.GetActualAlbumsForArtists(filteredArtists)
+	log.Infof("Found %d actual albums", len(actualAlbums))
 	if err != nil {
 		return fmt.Errorf("error getting actual albums: %w", err)
 	}

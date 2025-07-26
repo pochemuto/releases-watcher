@@ -3,6 +3,8 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/pochemuto/releases-watcher/sqlc"
@@ -43,7 +45,7 @@ func (l MusicBrainzLibrary) api() *musicbrainzws2.Client {
 func (l MusicBrainzLibrary) getRelease(releaseID string) (*musicbrainzws2.Release, error) {
 	freshness := 10 * 24 * time.Hour
 	return GetCached(l.cache, context.TODO(), "musicbrainz_release", releaseID, freshness, func() (*musicbrainzws2.Release, error) {
-		release, err := l.api().LookupRelease(context.TODO(), mbtypes.MBID(releaseID), musicbrainzws2.IncludesFilter{})
+		release, err := l.api().LookupRelease(context.TODO(), mbtypes.MBID(releaseID), musicbrainzws2.IncludesFilter{Includes: []string{"release-groups"}})
 		if err != nil {
 			return nil, err
 		}
@@ -82,8 +84,19 @@ func (l MusicBrainzLibrary) getArtistReleaseGroups(artistID string, offset int) 
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("Found %d releases\n", len(res.ReleaseGroups))
+		fmt.Printf("Found %d release groups\n", len(res.ReleaseGroups))
 		return &res, nil
+	})
+}
+
+func (l MusicBrainzLibrary) getArtistReleaseGroup(releaseGroupID mbtypes.MBID) (*musicbrainzws2.ReleaseGroup, error) {
+	freshness := 10 * 24 * time.Hour
+	return GetCached(l.cache, context.TODO(), "musicbrainz_releasegroup", string(releaseGroupID), freshness, func() (*musicbrainzws2.ReleaseGroup, error) {
+		releaseGroup, err := l.api().LookupReleaseGroup(context.TODO(), releaseGroupID, musicbrainzws2.IncludesFilter{Includes: []string{"releases"}})
+		if err != nil {
+			return nil, err
+		}
+		return &releaseGroup, nil
 	})
 }
 
@@ -102,6 +115,21 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 		}
 		for _, rg := range resp.ReleaseGroups {
 			if rg.PrimaryType == "Album" || rg.PrimaryType == "EP" || rg.PrimaryType == "Single" {
+				var excludedSecondaryTypes = []string{"Compilation", "Live", "Remix", "Demo", "Mixtape/Street"}
+				if rg.SecondaryTypes != nil && slices.ContainsFunc(rg.SecondaryTypes, func(s string) bool {
+					return slices.Contains(excludedSecondaryTypes, s)
+				}) {
+					continue
+				}
+				secondaryTypes := ""
+				if rg.SecondaryTypes != nil && len(rg.SecondaryTypes) > 0 {
+					secondaryTypes = fmt.Sprintf(" (%s)", strings.Join(rg.SecondaryTypes, ", "))
+				}
+				log.Infof("  Getting release for [%s%s] %s", rg.PrimaryType, secondaryTypes, rg.Title)
+				rg, err := l.getArtistReleaseGroup(rg.ID)
+				if err != nil {
+					return nil, err
+				}
 				// Get the first release for the group
 				if len(rg.Releases) > 0 {
 					releaseID := string(rg.Releases[0].ID)
