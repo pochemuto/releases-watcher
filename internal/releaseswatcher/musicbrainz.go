@@ -167,7 +167,7 @@ func (l MusicBrainzLibrary) GetActualAlbumsForArtists(artists []string) ([]sqlc.
 				year = int32(release.Date.Year)
 			}
 			actualAlbum := sqlc.ActualAlbum{
-				ID:     string(release.ID), // MusicBrainz IDs are strings, adapt as needed
+				ID:     string(release.ID),
 				Artist: &artist,
 				Name:   &release.Title,
 				Year:   &year,

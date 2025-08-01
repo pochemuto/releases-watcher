@@ -3,6 +3,8 @@
         "bson",
         "discogs",
         "musicbrainz",
+        "releasegroup",
+        "releasegroups",
         "wireinject"
     ]
 }
