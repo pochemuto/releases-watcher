@@ -158,7 +158,7 @@ func (l DiscogsLibrary) GetActualAlbumsForArtists(artists []string) ([]sqlc.Actu
 			}
 			year := int32(release.Year)
 			actualAlbum := sqlc.ActualAlbum{
-				ID:     int64(release.ID),
+				ID:     fmt.Sprint(release.ID),
 				Artist: &artist,
 				Name:   &release.Title,
 				Year:   &year,

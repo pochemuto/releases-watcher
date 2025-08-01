@@ -11,6 +11,14 @@ import (
 
 var log = logrus.New()
 
+func init() {
+	log.SetFormatter(&logrus.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		PadLevelText:    true,
+	})
+	log.SetReportCaller(true)
+}
+
 func main() {
 	updateLocal := flag.Bool("update-local", false, "Update local library")
 	updateActual := flag.Bool("update-actual", false, "Update actual library")

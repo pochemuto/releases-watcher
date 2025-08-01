@@ -84,7 +84,7 @@ func (l MusicBrainzLibrary) getArtistReleaseGroups(artistID string, offset int) 
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("Found %d release groups\n", len(res.ReleaseGroups))
+		log.Infof("Found %d release groups\n", len(res.ReleaseGroups))
 		return &res, nil
 	})
 }
@@ -108,7 +108,7 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 	releases := make([]musicbrainzws2.Release, 0)
 	offset := 0
 	for {
-		fmt.Printf("Checking releases for artist %s (offset %d)\n", artist, offset)
+		log.Infof("Checking releases for artist %s (offset %d)\n", artist, offset)
 		resp, err := l.getArtistReleaseGroups(artistID, offset)
 		if err != nil {
 			return nil, err
@@ -122,10 +122,10 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 					continue
 				}
 				secondaryTypes := ""
-				if rg.SecondaryTypes != nil && len(rg.SecondaryTypes) > 0 {
+				if len(rg.SecondaryTypes) > 0 {
 					secondaryTypes = fmt.Sprintf(" (%s)", strings.Join(rg.SecondaryTypes, ", "))
 				}
-				log.Infof("  Getting release for [%s%s] %s", rg.PrimaryType, secondaryTypes, rg.Title)
+				log.Infof("  Getting release for [%s%s] %s\n", rg.PrimaryType, secondaryTypes, rg.Title)
 				rg, err := l.getArtistReleaseGroup(rg.ID)
 				if err != nil {
 					return nil, err
@@ -151,7 +151,8 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 
 func (l MusicBrainzLibrary) GetActualAlbumsForArtists(artists []string) ([]sqlc.ActualAlbum, error) {
 	var actualAlbums []sqlc.ActualAlbum
-	for _, artist := range artists {
+	for i, artist := range artists {
+		log.Infof("Processing artist %d of %d: %s", i+1, len(artists), artist)
 		releases, err := l.getReleases(artist)
 		if err != nil {
 			continue
@@ -166,7 +167,7 @@ func (l MusicBrainzLibrary) GetActualAlbumsForArtists(artists []string) ([]sqlc.
 				year = int32(release.Date.Year)
 			}
 			actualAlbum := sqlc.ActualAlbum{
-				ID:     0, // MusicBrainz IDs are strings, adapt as needed
+				ID:     string(release.ID), // MusicBrainz IDs are strings, adapt as needed
 				Artist: &artist,
 				Name:   &release.Title,
 				Year:   &year,
