@@ -115,7 +115,7 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 		}
 		for _, rg := range resp.ReleaseGroups {
 			if rg.PrimaryType == "Album" || rg.PrimaryType == "EP" || rg.PrimaryType == "Single" {
-				var excludedSecondaryTypes = []string{"Compilation", "Live", "Remix", "Demo", "Mixtape/Street"}
+				var excludedSecondaryTypes = []string{"Compilation", "Live", "Remix", "Demo", "Mixtape/Street", "Bootleg", "Promotion", "Withdrawn", "Expunged", "Pseudo-Release", "Accepted"}
 				if rg.SecondaryTypes != nil && slices.ContainsFunc(rg.SecondaryTypes, func(s string) bool {
 					return slices.Contains(excludedSecondaryTypes, s)
 				}) {
