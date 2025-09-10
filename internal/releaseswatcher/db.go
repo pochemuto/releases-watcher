@@ -72,8 +72,8 @@ func (db DB) InsertLocalAlbum(ctx context.Context, tx pgx.Tx, album sqlc.Album) 
 	return db.queries.WithTx(tx).InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams(album))
 }
 
-func (db DB) InsertActualAlbum(ctx context.Context, tx pgx.Tx, album sqlc.ActualAlbum) error {
-	return db.queries.WithTx(tx).InsertActualAlbum(ctx, sqlc.InsertActualAlbumParams(album))
+func (db DB) InsertActualAlbum(ctx context.Context, album sqlc.ActualAlbum) error {
+	return db.queries.InsertActualAlbum(ctx, sqlc.InsertActualAlbumParams(album))
 }
 
 func (db DB) GetLocalAlbums(ctx context.Context) ([]sqlc.Album, error) {
@@ -90,4 +90,12 @@ func (db DB) GetLocalArtists(ctx context.Context) ([]string, error) {
 
 func (db DB) GetExcludedArtists(ctx context.Context) ([]string, error) {
 	return db.queries.GetExcludedArtists(ctx)
+}
+
+func (db DB) CreateVersion(ctx context.Context) (sqlc.Version, error) {
+	return db.queries.CreateVersion(ctx)
+}
+
+func (db DB) CreateActualAlbumPartition(ctx context.Context, version sqlc.Version) error {
+	return db.queries.CreateActualAlbumPartition(ctx, version.VersionID)
 }

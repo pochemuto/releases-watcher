@@ -9,11 +9,12 @@ import (
 )
 
 type ActualAlbum struct {
-	ID     string
-	Artist *string
-	Name   *string
-	Year   *int32
-	Kind   *string
+	ID        string
+	Artist    *string
+	Name      *string
+	Year      *int32
+	Kind      *string
+	VersionID int32
 }
 
 type Album struct {
@@ -35,4 +36,10 @@ type ExcludedAlbum struct {
 
 type ExcludedArtist struct {
 	Artist string
+}
+
+type Version struct {
+	VersionID int32
+	CreatedAt pgtype.Timestamp
+	Published bool
 }

@@ -59,20 +59,23 @@ func (w Watcher) UpdateActualLibrary() error {
 		}
 	}
 
+	version, err := w.db.CreateVersion(context.Background())
+	if err != nil {
+		return fmt.Errorf("error creating new version: %w", err)
+	}
+	err = w.db.CreateActualAlbumPartition(context.Background(), version)
+	if err != nil {
+		return fmt.Errorf("error creating actual album partition: %w", err)
+	}
 	actualAlbums, err := w.lib.GetActualAlbumsForArtists(filteredArtists)
 	log.Infof("Found %d actual albums", len(actualAlbums))
 	if err != nil {
 		return fmt.Errorf("error getting actual albums: %w", err)
 	}
-	tx, err := w.db.StartUpdateActualAlbums(context.Background())
-	if err != nil {
-		return fmt.Errorf("error starting transaction: %w", err)
-	}
-	defer tx.Commit(context.Background())
 	for _, actualAlbum := range actualAlbums {
-		err := w.db.InsertActualAlbum(context.Background(), tx, actualAlbum)
+		actualAlbum.VersionID = version.VersionID
+		err := w.db.InsertActualAlbum(context.Background(), actualAlbum)
 		if err != nil {
-			tx.Rollback(context.Background())
 			return fmt.Errorf("error inserting actual album: %w", err)
 		}
 	}

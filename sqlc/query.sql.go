@@ -9,6 +9,30 @@ import (
 	"context"
 )
 
+const createActualAlbumPartition = `-- name: CreateActualAlbumPartition :exec
+SELECT create_actual_album_partition($1::int)
+`
+
+func (q *Queries) CreateActualAlbumPartition(ctx context.Context, version int32) error {
+	_, err := q.db.Exec(ctx, createActualAlbumPartition, version)
+	return err
+}
+
+const createVersion = `-- name: CreateVersion :one
+INSERT INTO version (published)
+VALUES (FALSE)
+RETURNING version_id,
+	created_at,
+	published
+`
+
+func (q *Queries) CreateVersion(ctx context.Context) (Version, error) {
+	row := q.db.QueryRow(ctx, createVersion)
+	var i Version
+	err := row.Scan(&i.VersionID, &i.CreatedAt, &i.Published)
+	return i, err
+}
+
 const deleteAllActualAlbums = `-- name: DeleteAllActualAlbums :exec
 DELETE FROM actual_album
 `
@@ -28,7 +52,8 @@ func (q *Queries) DeleteAllLocalAlbums(ctx context.Context) error {
 }
 
 const getActualAlbums = `-- name: GetActualAlbums :many
-SELECT id, artist, name, year, kind FROM actual_album
+SELECT id, artist, name, year, kind, version_id
+FROM actual_album
 `
 
 func (q *Queries) GetActualAlbums(ctx context.Context) ([]ActualAlbum, error) {
@@ -46,6 +71,7 @@ func (q *Queries) GetActualAlbums(ctx context.Context) ([]ActualAlbum, error) {
 			&i.Name,
 			&i.Year,
 			&i.Kind,
+			&i.VersionID,
 		); err != nil {
 			return nil, err
 		}
@@ -58,7 +84,10 @@ func (q *Queries) GetActualAlbums(ctx context.Context) ([]ActualAlbum, error) {
 }
 
 const getAll = `-- name: GetAll :many
-SELECT value, id FROM cache WHERE entity = $1
+SELECT value,
+	id
+FROM cache
+WHERE entity = $1
 `
 
 type GetAllRow struct {
@@ -87,7 +116,10 @@ func (q *Queries) GetAll(ctx context.Context, entity string) ([]GetAllRow, error
 }
 
 const getCache = `-- name: GetCache :one
-SELECT value FROM cache WHERE entity = $1 AND id = $2
+SELECT value
+FROM cache
+WHERE entity = $1
+	AND id = $2
 `
 
 type GetCacheParams struct {
@@ -103,7 +135,9 @@ func (q *Queries) GetCache(ctx context.Context, arg GetCacheParams) ([]byte, err
 }
 
 const getExcludedAlbums = `-- name: GetExcludedAlbums :many
-SELECT artist, album FROM excluded_album
+SELECT artist,
+	album
+FROM excluded_album
 `
 
 func (q *Queries) GetExcludedAlbums(ctx context.Context) ([]ExcludedAlbum, error) {
@@ -127,7 +161,8 @@ func (q *Queries) GetExcludedAlbums(ctx context.Context) ([]ExcludedAlbum, error
 }
 
 const getExcludedArtists = `-- name: GetExcludedArtists :many
-SELECT artist FROM excluded_artist
+SELECT artist
+FROM excluded_artist
 `
 
 func (q *Queries) GetExcludedArtists(ctx context.Context) ([]string, error) {
@@ -151,7 +186,8 @@ func (q *Queries) GetExcludedArtists(ctx context.Context) ([]string, error) {
 }
 
 const getLocalAlbums = `-- name: GetLocalAlbums :many
-SELECT artist, name FROM album
+SELECT artist, name
+FROM album
 `
 
 func (q *Queries) GetLocalAlbums(ctx context.Context) ([]Album, error) {
@@ -175,7 +211,8 @@ func (q *Queries) GetLocalAlbums(ctx context.Context) ([]Album, error) {
 }
 
 const getLocalArtists = `-- name: GetLocalArtists :many
-SELECT DISTINCT artist FROM album
+SELECT DISTINCT artist
+FROM album
 `
 
 func (q *Queries) GetLocalArtists(ctx context.Context) ([]string, error) {
@@ -199,16 +236,17 @@ func (q *Queries) GetLocalArtists(ctx context.Context) ([]string, error) {
 }
 
 const insertActualAlbum = `-- name: InsertActualAlbum :exec
-INSERT INTO actual_album (id, artist, name, year, kind)
-		 VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING
+INSERT INTO actual_album (id, artist, name, year, kind, version_id)
+VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING
 `
 
 type InsertActualAlbumParams struct {
-	ID     string
-	Artist *string
-	Name   *string
-	Year   *int32
-	Kind   *string
+	ID        string
+	Artist    *string
+	Name      *string
+	Year      *int32
+	Kind      *string
+	VersionID int32
 }
 
 func (q *Queries) InsertActualAlbum(ctx context.Context, arg InsertActualAlbumParams) error {
@@ -218,12 +256,14 @@ func (q *Queries) InsertActualAlbum(ctx context.Context, arg InsertActualAlbumPa
 		arg.Name,
 		arg.Year,
 		arg.Kind,
+		arg.VersionID,
 	)
 	return err
 }
 
 const insertCache = `-- name: InsertCache :exec
-INSERT INTO cache (entity, id, value) VALUES ($1, $2, $3)
+INSERT INTO cache (entity, id, value)
+VALUES ($1, $2, $3)
 `
 
 type InsertCacheParams struct {
@@ -238,7 +278,8 @@ func (q *Queries) InsertCache(ctx context.Context, arg InsertCacheParams) error 
 }
 
 const insertLocalAlbum = `-- name: InsertLocalAlbum :exec
-INSERT INTO album (artist, name) VALUES ($1, $2) ON CONFLICT DO NOTHING
+INSERT INTO album (artist, name)
+VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
 
 type InsertLocalAlbumParams struct {
