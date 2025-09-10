@@ -22,10 +22,14 @@ VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING;
 SELECT value
 FROM cache
 WHERE entity = $1
-	AND id = $2;
+	AND id = $2
+	AND ts >= $3;
 -- name: InsertCache :exec
 INSERT INTO cache (entity, id, value)
-VALUES ($1, $2, $3);
+VALUES ($1, $2, $3) ON CONFLICT (entity, id) DO
+UPDATE
+SET value = EXCLUDED.value,
+	ts = CURRENT_TIMESTAMP;
 -- name: GetExcludedArtists :many
 SELECT artist
 FROM excluded_artist;

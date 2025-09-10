@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pochemuto/releases-watcher/sqlc"
 )
@@ -81,6 +82,7 @@ func (c Cache) getEntity(ctx context.Context,
 	result, err := c.queries.GetCache(ctx, sqlc.GetCacheParams{
 		Entity: entity,
 		ID:     id,
+		Ts:     pgtype.Timestamp{Time: time.Now().Add(-freshness), Valid: true},
 	})
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {

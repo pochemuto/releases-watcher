@@ -27,6 +27,7 @@ type RootPath string
 
 type Library interface {
 	GetActualAlbumsForArtists(ctx context.Context, artists []string, out chan<- sqlc.ActualAlbum)
+	Name() string
 }
 
 type Watcher struct {
@@ -41,7 +42,7 @@ func NewWatcher(root RootPath, db DB, lib Library) (Watcher, error) {
 
 func (w Watcher) UpdateActualLibrary() error {
 	artists, err := w.db.GetLocalArtists(context.Background())
-	log.Infof("Updating local library from Discogs for %d artists", len(artists))
+	log.Infof("Updating local library from %s for %d artists", w.lib.Name(), len(artists))
 	if err != nil {
 		return fmt.Errorf("error loading local artists: %w", err)
 	}

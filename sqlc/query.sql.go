@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createActualAlbumPartition = `-- name: CreateActualAlbumPartition :exec
@@ -126,15 +128,17 @@ SELECT value
 FROM cache
 WHERE entity = $1
 	AND id = $2
+	AND ts >= $3
 `
 
 type GetCacheParams struct {
 	Entity string
 	ID     string
+	Ts     pgtype.Timestamp
 }
 
 func (q *Queries) GetCache(ctx context.Context, arg GetCacheParams) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getCache, arg.Entity, arg.ID)
+	row := q.db.QueryRow(ctx, getCache, arg.Entity, arg.ID, arg.Ts)
 	var value []byte
 	err := row.Scan(&value)
 	return value, err
@@ -269,7 +273,10 @@ func (q *Queries) InsertActualAlbum(ctx context.Context, arg InsertActualAlbumPa
 
 const insertCache = `-- name: InsertCache :exec
 INSERT INTO cache (entity, id, value)
-VALUES ($1, $2, $3)
+VALUES ($1, $2, $3) ON CONFLICT (entity, id) DO
+UPDATE
+SET value = EXCLUDED.value,
+	ts = CURRENT_TIMESTAMP
 `
 
 type InsertCacheParams struct {

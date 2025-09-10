@@ -49,6 +49,10 @@ func NewDiscogsLibrary(token DiscogsToken, db DB, cache Cache) (DiscogsLibrary, 
 	}, nil
 }
 
+func (l DiscogsLibrary) Name() string {
+	return "Discogs"
+}
+
 func (l DiscogsLibrary) api() discogs.Discogs {
 	l.limiter.Wait(context.Background())
 	return l.discogs

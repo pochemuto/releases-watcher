@@ -22,6 +22,10 @@ type MusicBrainzLibrary struct {
 
 type MusicBrainzToken string
 
+func days(d int) time.Duration {
+	return time.Duration(d) * 24 * time.Hour
+}
+
 func NewMusicBrainzLibrary(token MusicBrainzToken, db DB, cache Cache) (MusicBrainzLibrary, error) {
 	if token == "" {
 		return MusicBrainzLibrary{}, fmt.Errorf("token is empty")
@@ -37,13 +41,17 @@ func NewMusicBrainzLibrary(token MusicBrainzToken, db DB, cache Cache) (MusicBra
 	}, nil
 }
 
+func (l MusicBrainzLibrary) Name() string {
+	return "MusicBrainz"
+}
+
 func (l MusicBrainzLibrary) api() *musicbrainzws2.Client {
 	l.limiter.Wait(context.Background())
 	return l.mb
 }
 
 func (l MusicBrainzLibrary) getRelease(releaseID string) (*musicbrainzws2.Release, error) {
-	freshness := 10 * 24 * time.Hour
+	freshness := days(7)
 	return GetCached(l.cache, context.TODO(), "musicbrainz_release", releaseID, freshness, func() (*musicbrainzws2.Release, error) {
 		release, err := l.api().LookupRelease(context.TODO(), mbtypes.MBID(releaseID), musicbrainzws2.IncludesFilter{Includes: []string{"release-groups"}})
 		if err != nil {
@@ -54,7 +62,7 @@ func (l MusicBrainzLibrary) getRelease(releaseID string) (*musicbrainzws2.Releas
 }
 
 func (l MusicBrainzLibrary) getArtistID(artist string) (string, error) {
-	freshness := 10 * 24 * time.Hour
+	freshness := days(30)
 	result, err := GetCached(l.cache, context.TODO(), "musicbrainz_artist_search", artist, freshness, func() (*musicbrainzws2.SearchArtistsResult, error) {
 		filter := musicbrainzws2.SearchFilter{Query: artist}
 		res, err := l.api().SearchArtists(context.TODO(), filter, musicbrainzws2.DefaultPaginator())
@@ -73,7 +81,7 @@ func (l MusicBrainzLibrary) getArtistID(artist string) (string, error) {
 }
 
 func (l MusicBrainzLibrary) getArtistReleaseGroups(artistID string, offset int) (*musicbrainzws2.BrowseReleaseGroupsResult, error) {
-	freshness := 10 * 24 * time.Hour
+	freshness := days(7)
 	cacheKey := fmt.Sprintf("%s_%d", artistID, offset)
 	return GetCached(l.cache, context.TODO(), "musicbrainz_artist_releasegroups", cacheKey, freshness, func() (*musicbrainzws2.BrowseReleaseGroupsResult, error) {
 		filter := musicbrainzws2.ReleaseGroupFilter{ArtistMBID: mbtypes.MBID(artistID)}
@@ -90,7 +98,7 @@ func (l MusicBrainzLibrary) getArtistReleaseGroups(artistID string, offset int) 
 }
 
 func (l MusicBrainzLibrary) getArtistReleaseGroup(releaseGroupID mbtypes.MBID) (*musicbrainzws2.ReleaseGroup, error) {
-	freshness := 10 * 24 * time.Hour
+	freshness := days(7)
 	return GetCached(l.cache, context.TODO(), "musicbrainz_releasegroup", string(releaseGroupID), freshness, func() (*musicbrainzws2.ReleaseGroup, error) {
 		releaseGroup, err := l.api().LookupReleaseGroup(context.TODO(), releaseGroupID, musicbrainzws2.IncludesFilter{Includes: []string{"releases"}})
 		if err != nil {
@@ -100,18 +108,20 @@ func (l MusicBrainzLibrary) getArtistReleaseGroup(releaseGroupID mbtypes.MBID) (
 	})
 }
 
-func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release, error) {
+func (l MusicBrainzLibrary) getReleases(artist string, out chan<- musicbrainzws2.Release) {
+	defer close(out)
 	artistID, err := l.getArtistID(artist)
 	if err != nil {
-		return nil, err
+		log.Errorf("Error getting artist ID for %s: %v", artist, err)
+		return
 	}
-	releases := make([]musicbrainzws2.Release, 0)
 	offset := 0
 	for {
 		log.Infof("Checking releases for artist %s (offset %d)\n", artist, offset)
 		resp, err := l.getArtistReleaseGroups(artistID, offset)
 		if err != nil {
-			return nil, err
+			log.Errorf("Error getting release groups for artist %s: %v", artist, err)
+			return
 		}
 		for _, rg := range resp.ReleaseGroups {
 			if rg.PrimaryType == "Album" || rg.PrimaryType == "EP" || rg.PrimaryType == "Single" {
@@ -128,7 +138,7 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 				log.Infof("  Getting release for [%s%s] %s\n", rg.PrimaryType, secondaryTypes, rg.Title)
 				rg, err := l.getArtistReleaseGroup(rg.ID)
 				if err != nil {
-					return nil, err
+					log.Errorf("Error getting release group %s: %v", rg.ID, err)
 				}
 				// Get the first release for the group
 				if len(rg.Releases) > 0 {
@@ -137,7 +147,7 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 					if err != nil {
 						continue
 					}
-					releases = append(releases, *release)
+					out <- *release
 				}
 			}
 		}
@@ -146,18 +156,16 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 			break
 		}
 	}
-	return releases, nil
 }
 
 func (l MusicBrainzLibrary) GetActualAlbumsForArtists(ctx context.Context, artists []string, out chan<- sqlc.ActualAlbum) {
 	defer close(out)
 	for i, artist := range artists {
 		log.Infof("Processing artist %d of %d: %s", i+1, len(artists), artist)
-		releases, err := l.getReleases(artist)
-		if err != nil {
-			continue
-		}
-		for _, release := range releases {
+
+		releases := make(chan musicbrainzws2.Release)
+		go l.getReleases(artist, releases)
+		for release := range releases {
 			kind := ""
 			if release.ReleaseGroup != nil {
 				kind = release.ReleaseGroup.PrimaryType
