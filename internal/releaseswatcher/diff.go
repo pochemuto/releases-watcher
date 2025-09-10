@@ -44,6 +44,7 @@ func (d Differ) Diff() ([]sqlc.ActualAlbumPublished, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error loading actual albums: %w", err)
 	}
+	log.Infof("Loaded %d local albums and %d actual albums", len(local), len(actual))
 
 	excludedArtists, err := d.db.queries.GetExcludedArtists(context.Background())
 	if err != nil {
@@ -81,21 +82,6 @@ func (d Differ) Diff() ([]sqlc.ActualAlbumPublished, error) {
 	result := make([]sqlc.ActualAlbumPublished, 0)
 	for _, actual := range actual {
 		if actual.Year != nil && *actual.Year < 2010 {
-			continue
-		}
-		if strings.Contains(*actual.Name, "Remixed") ||
-			strings.Contains(*actual.Name, "Remix") ||
-			strings.Contains(*actual.Name, "Remastered") ||
-			strings.Contains(*actual.Name, "Remaster") ||
-			strings.Contains(*actual.Name, "Soundtrack") ||
-			strings.Contains(*actual.Name, "Motion Picture") {
-			log.Tracef("Album %s is remix, skipped", *actual.Name)
-			continue
-		}
-		if strings.HasPrefix(*actual.Name, "Live ") ||
-			strings.HasSuffix(*actual.Name, " Live") ||
-			strings.Contains(*actual.Name, "Live At") {
-			log.Tracef("Album %s is live, skipped", *actual.Name)
 			continue
 		}
 

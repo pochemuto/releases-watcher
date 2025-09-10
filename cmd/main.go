@@ -51,12 +51,15 @@ func main() {
 		albumCount := 0
 		// Sort newAlbums by Year in descending order
 		sort.Slice(newAlbums, func(i, j int) bool {
+			if *newAlbums[i].Artist != *newAlbums[j].Artist {
+				return *newAlbums[i].Artist < *newAlbums[j].Artist
+			}
 			return *newAlbums[i].Year < *newAlbums[j].Year
 		})
 		for _, newAlbum := range newAlbums {
-			if *newAlbum.Kind == "album" {
+			if *newAlbum.Kind == "Album" {
 				albumCount++
-				log.Infof("New album: [%v] %s - %s (%s)  http://discogs.com/release/%v",
+				log.Infof("New album: [%v] %s - %s (%s)  https://musicbrainz.org/release/%v",
 					*newAlbum.Year,
 					*newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind, newAlbum.ID)
 			}
