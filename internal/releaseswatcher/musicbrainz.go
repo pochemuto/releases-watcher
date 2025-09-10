@@ -110,6 +110,8 @@ func (l MusicBrainzLibrary) getArtistReleaseGroup(releaseGroupID mbtypes.MBID) (
 
 func (l MusicBrainzLibrary) getReleases(artist string, out chan<- musicbrainzws2.Release) {
 	defer close(out)
+	var excludedSecondaryTypes = []string{"Compilation", "Live", "Remix", "Demo", "Mixtape/Street", "Bootleg", "Promotion", "Withdrawn", "Expunged", "Pseudo-Release", "Accepted"}
+	var excludedReleaseStatuses = []string{"Bootleg"}
 	artistID, err := l.getArtistID(artist)
 	if err != nil {
 		log.Errorf("Error getting artist ID for %s: %v", artist, err)
@@ -125,7 +127,6 @@ func (l MusicBrainzLibrary) getReleases(artist string, out chan<- musicbrainzws2
 		}
 		for _, rg := range resp.ReleaseGroups {
 			if rg.PrimaryType == "Album" || rg.PrimaryType == "EP" || rg.PrimaryType == "Single" {
-				var excludedSecondaryTypes = []string{"Compilation", "Live", "Remix", "Demo", "Mixtape/Street", "Bootleg", "Promotion", "Withdrawn", "Expunged", "Pseudo-Release", "Accepted"}
 				if rg.SecondaryTypes != nil && slices.ContainsFunc(rg.SecondaryTypes, func(s string) bool {
 					return slices.Contains(excludedSecondaryTypes, s)
 				}) {
@@ -145,6 +146,9 @@ func (l MusicBrainzLibrary) getReleases(artist string, out chan<- musicbrainzws2
 					releaseID := string(rg.Releases[0].ID)
 					release, err := l.getRelease(releaseID)
 					if err != nil {
+						continue
+					}
+					if slices.Contains(excludedReleaseStatuses, release.Status) {
 						continue
 					}
 					out <- *release
