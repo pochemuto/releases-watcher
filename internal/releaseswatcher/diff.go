@@ -81,7 +81,7 @@ func (d Differ) Diff() ([]sqlc.ActualAlbumPublished, error) {
 	// Iterate over actual albums and check if they exist in the map or are excluded.
 	result := make([]sqlc.ActualAlbumPublished, 0)
 	for _, actual := range actual {
-		if actual.Year != nil && *actual.Year < 2010 {
+		if actual.Year != nil && *actual.Year < int32(d.cutoffYear) {
 			continue
 		}
 
@@ -89,12 +89,15 @@ func (d Differ) Diff() ([]sqlc.ActualAlbumPublished, error) {
 		normalizedArtist := normalizeString(*actual.Artist)
 
 		if _, localOk := localMap[normalizedAlbum]; localOk {
+			log.Tracef("Album exists locally, skipping: %s", normalizedAlbum)
 			continue
 		}
 		if _, albumOk := excludedAlbumMap[normalizedAlbum]; albumOk {
+			log.Tracef("Album is excluded, skipping: %s", normalizedAlbum)
 			continue
 		}
 		if _, artistOk := excludedArtistMap[normalizedArtist]; artistOk {
+			log.Tracef("Artist is excluded, skipping: %s", normalizedArtist)
 			continue
 		}
 
@@ -106,8 +109,9 @@ func (d Differ) Diff() ([]sqlc.ActualAlbumPublished, error) {
 
 func normalize(a sqlc.LocalAlbumPublished) sqlc.LocalAlbumPublished {
 	return sqlc.LocalAlbumPublished{
-		Artist: normalizeString(a.Artist),
-		Name:   normalizeString(a.Name),
+		Artist:    normalizeString(a.Artist),
+		Name:      normalizeString(a.Name),
+		VersionID: 0,
 	}
 }
 
@@ -122,6 +126,6 @@ func normalizeString(s string) string {
 	// First, remove text in braces
 	s = removeTextInBraces(s)
 	// Now, remove unwanted characters except for letters, digits, and the star symbol
-	regex := `[^a-zA-Z0-9★]`
+	regex := `[^\p{L}a-zA-Z0-9★]`
 	return strings.ToLower(regexp.MustCompile(regex).ReplaceAllString(s, ""))
 }
