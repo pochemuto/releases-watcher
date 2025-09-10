@@ -62,7 +62,7 @@ func (l MusicBrainzLibrary) getRelease(releaseID string) (*musicbrainzws2.Releas
 }
 
 func (l MusicBrainzLibrary) getArtistID(artist string) (string, error) {
-	freshness := days(30)
+	freshness := days(90)
 	result, err := GetCached(l.cache, context.TODO(), "musicbrainz_artist_search", artist, freshness, func() (*musicbrainzws2.SearchArtistsResult, error) {
 		filter := musicbrainzws2.SearchFilter{Query: artist}
 		res, err := l.api().SearchArtists(context.TODO(), filter, musicbrainzws2.DefaultPaginator())
@@ -98,7 +98,7 @@ func (l MusicBrainzLibrary) getArtistReleaseGroups(artistID string, offset int) 
 }
 
 func (l MusicBrainzLibrary) getArtistReleaseGroup(releaseGroupID mbtypes.MBID) (*musicbrainzws2.ReleaseGroup, error) {
-	freshness := days(7)
+	freshness := days(30)
 	return GetCached(l.cache, context.TODO(), "musicbrainz_releasegroup", string(releaseGroupID), freshness, func() (*musicbrainzws2.ReleaseGroup, error) {
 		releaseGroup, err := l.api().LookupReleaseGroup(context.TODO(), releaseGroupID, musicbrainzws2.IncludesFilter{Includes: []string{"releases"}})
 		if err != nil {
