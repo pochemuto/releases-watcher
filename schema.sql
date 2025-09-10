@@ -44,10 +44,10 @@ CREATE TABLE "public"."excluded_album" (
 	"album" varchar NOT NULL,
 	PRIMARY KEY ("artist", "album")
 );
--- public."version" definition
+-- public."actual_version" definition
 -- Drop table
--- DROP TABLE public."version";
-CREATE TABLE public."version" (
+-- DROP TABLE public."actual_version";
+CREATE TABLE public."actual_version" (
 	version_id serial4 NOT NULL,
 	created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	published bool DEFAULT false NOT NULL,

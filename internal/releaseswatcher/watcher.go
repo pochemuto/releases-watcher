@@ -26,7 +26,7 @@ func init() {
 type RootPath string
 
 type Library interface {
-	GetActualAlbumsForArtists(artists []string) ([]sqlc.ActualAlbum, error)
+	GetActualAlbumsForArtists(ctx context.Context, artists []string, out chan<- sqlc.ActualAlbum)
 }
 
 type Watcher struct {
@@ -59,7 +59,7 @@ func (w Watcher) UpdateActualLibrary() error {
 		}
 	}
 
-	version, err := w.db.CreateVersion(context.Background())
+	version, err := w.db.CreateActualVersion(context.Background())
 	if err != nil {
 		return fmt.Errorf("error creating new version: %w", err)
 	}
@@ -67,12 +67,9 @@ func (w Watcher) UpdateActualLibrary() error {
 	if err != nil {
 		return fmt.Errorf("error creating actual album partition: %w", err)
 	}
-	actualAlbums, err := w.lib.GetActualAlbumsForArtists(filteredArtists)
-	log.Infof("Found %d actual albums", len(actualAlbums))
-	if err != nil {
-		return fmt.Errorf("error getting actual albums: %w", err)
-	}
-	for _, actualAlbum := range actualAlbums {
+	actualAlbums := make(chan sqlc.ActualAlbum, 100)
+	go w.lib.GetActualAlbumsForArtists(context.Background(), filteredArtists, actualAlbums)
+	for actualAlbum := range actualAlbums {
 		actualAlbum.VersionID = version.VersionID
 		err := w.db.InsertActualAlbum(context.Background(), actualAlbum)
 		if err != nil {

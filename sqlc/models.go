@@ -17,6 +17,12 @@ type ActualAlbum struct {
 	VersionID int32
 }
 
+type ActualVersion struct {
+	VersionID int32
+	CreatedAt pgtype.Timestamp
+	Published bool
+}
+
 type Album struct {
 	Artist string
 	Name   string
@@ -36,10 +42,4 @@ type ExcludedAlbum struct {
 
 type ExcludedArtist struct {
 	Artist string
-}
-
-type Version struct {
-	VersionID int32
-	CreatedAt pgtype.Timestamp
-	Published bool
 }

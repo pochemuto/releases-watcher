@@ -149,8 +149,8 @@ func (l MusicBrainzLibrary) getReleases(artist string) ([]musicbrainzws2.Release
 	return releases, nil
 }
 
-func (l MusicBrainzLibrary) GetActualAlbumsForArtists(artists []string) ([]sqlc.ActualAlbum, error) {
-	var actualAlbums []sqlc.ActualAlbum
+func (l MusicBrainzLibrary) GetActualAlbumsForArtists(ctx context.Context, artists []string, out chan<- sqlc.ActualAlbum) {
+	defer close(out)
 	for i, artist := range artists {
 		log.Infof("Processing artist %d of %d: %s", i+1, len(artists), artist)
 		releases, err := l.getReleases(artist)
@@ -173,8 +173,7 @@ func (l MusicBrainzLibrary) GetActualAlbumsForArtists(artists []string) ([]sqlc.
 				Year:   &year,
 				Kind:   &kind,
 			}
-			actualAlbums = append(actualAlbums, actualAlbum)
+			out <- actualAlbum
 		}
 	}
-	return actualAlbums, nil
 }

@@ -37,8 +37,8 @@ FROM excluded_artist;
 SELECT artist,
 	album
 FROM excluded_album;
--- name: CreateVersion :one
-INSERT INTO version (published)
+-- name: CreateActualVersion :one
+INSERT INTO actual_version (published)
 VALUES (FALSE)
 RETURNING version_id,
 	created_at,

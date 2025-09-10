@@ -137,8 +137,8 @@ func (l DiscogsLibrary) getReleases(artist string) ([]discogs.Release, error) {
 }
 
 // GetActualAlbumsForArtists получает актуальные альбомы для списка артистов
-func (l DiscogsLibrary) GetActualAlbumsForArtists(artists []string) ([]sqlc.ActualAlbum, error) {
-	var actualAlbums []sqlc.ActualAlbum
+func (l DiscogsLibrary) GetActualAlbumsForArtists(ctx context.Context, artists []string, out chan<- sqlc.ActualAlbum) {
+	defer close(out)
 	for i, artist := range artists {
 		log.Tracef("Fetching for %s [%d of %d]", artist, i+1, len(artists))
 		releases, err := l.getReleases(artist)
@@ -164,10 +164,9 @@ func (l DiscogsLibrary) GetActualAlbumsForArtists(artists []string) ([]sqlc.Actu
 				Year:   &year,
 				Kind:   &kind,
 			}
-			actualAlbums = append(actualAlbums, actualAlbum)
+			out <- actualAlbum
 		}
 	}
-	return actualAlbums, nil
 }
 
 func isReleaseType(release *discogs.Release, releaseType string) bool {

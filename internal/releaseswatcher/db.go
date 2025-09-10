@@ -92,10 +92,10 @@ func (db DB) GetExcludedArtists(ctx context.Context) ([]string, error) {
 	return db.queries.GetExcludedArtists(ctx)
 }
 
-func (db DB) CreateVersion(ctx context.Context) (sqlc.Version, error) {
-	return db.queries.CreateVersion(ctx)
+func (db DB) CreateActualVersion(ctx context.Context) (sqlc.ActualVersion, error) {
+	return db.queries.CreateActualVersion(ctx)
 }
 
-func (db DB) CreateActualAlbumPartition(ctx context.Context, version sqlc.Version) error {
+func (db DB) CreateActualAlbumPartition(ctx context.Context, version sqlc.ActualVersion) error {
 	return db.queries.CreateActualAlbumPartition(ctx, version.VersionID)
 }

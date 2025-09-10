@@ -18,17 +18,17 @@ func (q *Queries) CreateActualAlbumPartition(ctx context.Context, version int32)
 	return err
 }
 
-const createVersion = `-- name: CreateVersion :one
-INSERT INTO version (published)
+const createActualVersion = `-- name: CreateActualVersion :one
+INSERT INTO actual_version (published)
 VALUES (FALSE)
 RETURNING version_id,
 	created_at,
 	published
 `
 
-func (q *Queries) CreateVersion(ctx context.Context) (Version, error) {
-	row := q.db.QueryRow(ctx, createVersion)
-	var i Version
+func (q *Queries) CreateActualVersion(ctx context.Context) (ActualVersion, error) {
+	row := q.db.QueryRow(ctx, createActualVersion)
+	var i ActualVersion
 	err := row.Scan(&i.VersionID, &i.CreatedAt, &i.Published)
 	return i, err
 }
