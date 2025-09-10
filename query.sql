@@ -1,24 +1,20 @@
 -- name: GetLocalAlbums :many
 SELECT *
-FROM album;
+FROM local_album_published;
 -- name: GetActualAlbums :many
 SELECT *
-FROM actual_album;
+FROM actual_album_published;
 -- name: GetLocalArtists :many
 SELECT DISTINCT artist
-FROM album;
+FROM local_album_published;
 -- name: GetAll :many
 SELECT value,
 	id
 FROM cache
 WHERE entity = $1;
--- name: DeleteAllLocalAlbums :exec
-DELETE FROM album;
--- name: DeleteAllActualAlbums :exec
-DELETE FROM actual_album;
 -- name: InsertLocalAlbum :exec
-INSERT INTO album (artist, name)
-VALUES ($1, $2) ON CONFLICT DO NOTHING;
+INSERT INTO local_album (artist, name, version_id)
+VALUES ($1, $2, $3) ON CONFLICT DO NOTHING;
 -- name: InsertActualAlbum :exec
 INSERT INTO actual_album (id, artist, name, year, kind, version_id)
 VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING;
@@ -43,9 +39,21 @@ VALUES (FALSE)
 RETURNING version_id,
 	created_at,
 	published;
+-- name: CreateLocalVersion :one
+INSERT INTO local_version (published)
+VALUES (FALSE)
+RETURNING version_id,
+	created_at,
+	published;
 -- name: CreateActualAlbumPartition :exec
 SELECT create_actual_album_partition(@version::int);
+-- name: CreateLocalAlbumPartition :exec
+SELECT create_local_album_partition(@version::int);
 -- name: PublishActualVersion :exec
 UPDATE actual_version
+SET published = TRUE
+WHERE version_id = @version::int;
+-- name: PublishLocalVersion :exec
+UPDATE local_version
 SET published = TRUE
 WHERE version_id = @version::int;

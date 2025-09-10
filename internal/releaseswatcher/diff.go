@@ -27,15 +27,15 @@ func NewDiffer(db DB) Differ {
 	}
 }
 
-func toAlbum(ea sqlc.ExcludedAlbum) sqlc.Album {
-	return sqlc.Album{
+func toAlbum(ea sqlc.ExcludedAlbum) sqlc.LocalAlbumPublished {
+	return sqlc.LocalAlbumPublished{
 		Artist: ea.Artist,
 		Name:   ea.Album,
 	}
 }
 
 // Diff function with excluded albums and artists
-func (d Differ) Diff() ([]sqlc.ActualAlbum, error) {
+func (d Differ) Diff() ([]sqlc.ActualAlbumPublished, error) {
 	local, err := d.db.GetLocalAlbums(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error loading local albums: %w", err)
@@ -56,14 +56,14 @@ func (d Differ) Diff() ([]sqlc.ActualAlbum, error) {
 	}
 	log.Infof("Excluded albums %d", len(excludedAlbums))
 	// Create a map of normalized local albums for faster lookup.
-	localMap := make(map[sqlc.Album]bool)
+	localMap := make(map[sqlc.LocalAlbumPublished]bool)
 	for _, local := range local {
 		normalized := normalize(local)
 		localMap[normalized] = true
 	}
 
 	// Create a set of normalized excluded albums for faster lookup.
-	excludedAlbumMap := make(map[sqlc.Album]bool)
+	excludedAlbumMap := make(map[sqlc.LocalAlbumPublished]bool)
 	for _, album := range excludedAlbums {
 		normalized := normalize(toAlbum(album))
 		excludedAlbumMap[normalized] = true
@@ -78,7 +78,7 @@ func (d Differ) Diff() ([]sqlc.ActualAlbum, error) {
 
 	log.Infof("Filtering albums released since %d", d.cutoffYear)
 	// Iterate over actual albums and check if they exist in the map or are excluded.
-	result := make([]sqlc.ActualAlbum, 0)
+	result := make([]sqlc.ActualAlbumPublished, 0)
 	for _, actual := range actual {
 		if actual.Year != nil && *actual.Year < 2010 {
 			continue
@@ -99,7 +99,7 @@ func (d Differ) Diff() ([]sqlc.ActualAlbum, error) {
 			continue
 		}
 
-		normalizedAlbum := normalize(sqlc.Album{Artist: *actual.Artist, Name: *actual.Name})
+		normalizedAlbum := normalize(sqlc.LocalAlbumPublished{Artist: *actual.Artist, Name: *actual.Name})
 		normalizedArtist := normalizeString(*actual.Artist)
 
 		if _, localOk := localMap[normalizedAlbum]; localOk {
@@ -118,8 +118,8 @@ func (d Differ) Diff() ([]sqlc.ActualAlbum, error) {
 	return result, nil
 }
 
-func normalize(a sqlc.Album) sqlc.Album {
-	return sqlc.Album{
+func normalize(a sqlc.LocalAlbumPublished) sqlc.LocalAlbumPublished {
+	return sqlc.LocalAlbumPublished{
 		Artist: normalizeString(a.Artist),
 		Name:   normalizeString(a.Name),
 	}

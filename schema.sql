@@ -17,14 +17,44 @@ CREATE OR REPLACE FUNCTION create_actual_album_partition(v int) RETURNS void LAN
 		v
 	);
 END $$;
--- public.album определение
+-- public.local_album определение
 -- Drop table
--- DROP TABLE public.album;
-CREATE TABLE public.album (
+-- DROP TABLE public.local_album;
+CREATE TABLE public.local_album (
 	artist varchar COLLATE "ru-RU-x-icu" NOT NULL,
 	"name" varchar COLLATE "ru-RU-x-icu" NOT NULL,
-	CONSTRAINT album_pk PRIMARY KEY (artist, name)
+	version_id int4 NOT NULL,
+	CONSTRAINT local_album_pk PRIMARY KEY (version_id, artist, name)
+) PARTITION BY LIST (version_id);
+-- public."local_version" definition
+-- Drop table
+-- DROP TABLE public."local_version";
+CREATE TABLE public."local_version" (
+	version_id serial4 NOT NULL,
+	created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	published bool DEFAULT false NOT NULL,
+	CONSTRAINT local_version_pkey PRIMARY KEY (version_id)
 );
+-- public.local_album_published source
+CREATE OR REPLACE VIEW public.local_album_published AS
+SELECT la.artist,
+	la.name,
+	la.version_id
+FROM local_album la
+	JOIN (
+		SELECT local_version.version_id
+		FROM local_version
+		WHERE local_version.published = true
+		ORDER BY local_version.version_id DESC
+		LIMIT 1
+	) v ON la.version_id = v.version_id;
+-- public.create_local_album_partition
+CREATE OR REPLACE FUNCTION create_local_album_partition(v int) RETURNS void LANGUAGE plpgsql AS $$ BEGIN EXECUTE format(
+		'CREATE TABLE IF NOT EXISTS %I PARTITION OF local_album FOR VALUES IN (%s)',
+		format('local_album_v%s', v),
+		v
+	);
+END $$;
 -- public."cache" определение
 -- Drop table
 -- DROP TABLE public."cache";
@@ -51,5 +81,21 @@ CREATE TABLE public."actual_version" (
 	version_id serial4 NOT NULL,
 	created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	published bool DEFAULT false NOT NULL,
-	CONSTRAINT version_pkey PRIMARY KEY (version_id)
+	CONSTRAINT actual_version_pkey PRIMARY KEY (version_id)
 );
+-- public.actual_album_published source
+CREATE OR REPLACE VIEW public.actual_album_published AS
+SELECT aa.id,
+	aa.artist,
+	aa.name,
+	aa.year,
+	aa.kind,
+	aa.version_id
+FROM actual_album aa
+	JOIN (
+		SELECT actual_version.version_id
+		FROM actual_version
+		WHERE actual_version.published = true
+		ORDER BY actual_version.version_id DESC
+		LIMIT 1
+	) v ON aa.version_id = v.version_id;

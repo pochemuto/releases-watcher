@@ -2,8 +2,8 @@ package releaseswatcher
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pochemuto/releases-watcher/sqlc"
 )
@@ -34,7 +34,7 @@ func NewDB(conn *pgxpool.Pool) (DB, error) {
 	}, nil
 }
 
-func IsCorrect(a sqlc.Album) bool {
+func IsCorrect(a sqlc.LocalAlbum) bool {
 	return len(a.Artist) > 0 && len(a.Name) > 0
 }
 
@@ -42,45 +42,19 @@ func (db DB) Disconnect() {
 	db.conn.Close()
 }
 
-func (db DB) StartUpdateLocalAlbums(ctx context.Context) (pgx.Tx, error) {
-	tx, err := db.conn.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	err = db.queries.WithTx(tx).DeleteAllLocalAlbums(ctx)
-	if err != nil {
-		tx.Rollback(ctx)
-		return nil, err
-	}
-	return tx, nil
-}
-
-func (db DB) StartUpdateActualAlbums(ctx context.Context) (pgx.Tx, error) {
-	tx, err := db.conn.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	err = db.queries.WithTx(tx).DeleteAllActualAlbums(ctx)
-	if err != nil {
-		tx.Rollback(ctx)
-		return nil, err
-	}
-	return tx, nil
-}
-
-func (db DB) InsertLocalAlbum(ctx context.Context, tx pgx.Tx, album sqlc.Album) error {
-	return db.queries.WithTx(tx).InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams(album))
+func (db DB) InsertLocalAlbum(ctx context.Context, album sqlc.LocalAlbum) error {
+	return db.queries.InsertLocalAlbum(ctx, sqlc.InsertLocalAlbumParams(album))
 }
 
 func (db DB) InsertActualAlbum(ctx context.Context, album sqlc.ActualAlbum) error {
 	return db.queries.InsertActualAlbum(ctx, sqlc.InsertActualAlbumParams(album))
 }
 
-func (db DB) GetLocalAlbums(ctx context.Context) ([]sqlc.Album, error) {
+func (db DB) GetLocalAlbums(ctx context.Context) ([]sqlc.LocalAlbumPublished, error) {
 	return db.queries.GetLocalAlbums(ctx)
 }
 
-func (db DB) GetActualAlbums(ctx context.Context) ([]sqlc.ActualAlbum, error) {
+func (db DB) GetActualAlbums(ctx context.Context) ([]sqlc.ActualAlbumPublished, error) {
 	return db.queries.GetActualAlbums(ctx)
 }
 
@@ -93,13 +67,33 @@ func (db DB) GetExcludedArtists(ctx context.Context) ([]string, error) {
 }
 
 func (db DB) CreateActualVersion(ctx context.Context) (sqlc.ActualVersion, error) {
-	return db.queries.CreateActualVersion(ctx)
+	version, err := db.queries.CreateActualVersion(ctx)
+	if err != nil {
+		return sqlc.ActualVersion{}, err
+	}
+	err = db.queries.CreateActualAlbumPartition(ctx, version.VersionID)
+	if err != nil {
+		return sqlc.ActualVersion{}, fmt.Errorf("error creating actual album partition: %w", err)
+	}
+	return version, nil
 }
 
-func (db DB) CreateActualAlbumPartition(ctx context.Context, version sqlc.ActualVersion) error {
-	return db.queries.CreateActualAlbumPartition(ctx, version.VersionID)
+func (db DB) CreateLocalVersion(ctx context.Context) (sqlc.LocalVersion, error) {
+	version, err := db.queries.CreateLocalVersion(ctx)
+	if err != nil {
+		return sqlc.LocalVersion{}, err
+	}
+	err = db.queries.CreateLocalAlbumPartition(ctx, version.VersionID)
+	if err != nil {
+		return sqlc.LocalVersion{}, fmt.Errorf("error creating local album partition: %w", err)
+	}
+	return version, nil
 }
 
 func (db DB) PublishActualVersion(ctx context.Context, version sqlc.ActualVersion) error {
 	return db.queries.PublishActualVersion(ctx, version.VersionID)
+}
+
+func (db DB) PublishLocalVersion(ctx context.Context, version sqlc.LocalVersion) error {
+	return db.queries.PublishLocalVersion(ctx, version.VersionID)
 }

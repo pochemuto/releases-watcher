@@ -17,15 +17,19 @@ type ActualAlbum struct {
 	VersionID int32
 }
 
+type ActualAlbumPublished struct {
+	ID        string
+	Artist    *string
+	Name      *string
+	Year      *int32
+	Kind      *string
+	VersionID int32
+}
+
 type ActualVersion struct {
 	VersionID int32
 	CreatedAt pgtype.Timestamp
 	Published bool
-}
-
-type Album struct {
-	Artist string
-	Name   string
 }
 
 type Cache struct {
@@ -42,4 +46,22 @@ type ExcludedAlbum struct {
 
 type ExcludedArtist struct {
 	Artist string
+}
+
+type LocalAlbum struct {
+	Artist    string
+	Name      string
+	VersionID int32
+}
+
+type LocalAlbumPublished struct {
+	Artist    string
+	Name      string
+	VersionID int32
+}
+
+type LocalVersion struct {
+	VersionID int32
+	CreatedAt pgtype.Timestamp
+	Published bool
 }

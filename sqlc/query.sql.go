@@ -33,38 +33,44 @@ func (q *Queries) CreateActualVersion(ctx context.Context) (ActualVersion, error
 	return i, err
 }
 
-const deleteAllActualAlbums = `-- name: DeleteAllActualAlbums :exec
-DELETE FROM actual_album
+const createLocalAlbumPartition = `-- name: CreateLocalAlbumPartition :exec
+SELECT create_local_album_partition($1::int)
 `
 
-func (q *Queries) DeleteAllActualAlbums(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, deleteAllActualAlbums)
+func (q *Queries) CreateLocalAlbumPartition(ctx context.Context, version int32) error {
+	_, err := q.db.Exec(ctx, createLocalAlbumPartition, version)
 	return err
 }
 
-const deleteAllLocalAlbums = `-- name: DeleteAllLocalAlbums :exec
-DELETE FROM album
+const createLocalVersion = `-- name: CreateLocalVersion :one
+INSERT INTO local_version (published)
+VALUES (FALSE)
+RETURNING version_id,
+	created_at,
+	published
 `
 
-func (q *Queries) DeleteAllLocalAlbums(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, deleteAllLocalAlbums)
-	return err
+func (q *Queries) CreateLocalVersion(ctx context.Context) (LocalVersion, error) {
+	row := q.db.QueryRow(ctx, createLocalVersion)
+	var i LocalVersion
+	err := row.Scan(&i.VersionID, &i.CreatedAt, &i.Published)
+	return i, err
 }
 
 const getActualAlbums = `-- name: GetActualAlbums :many
 SELECT id, artist, name, year, kind, version_id
-FROM actual_album
+FROM actual_album_published
 `
 
-func (q *Queries) GetActualAlbums(ctx context.Context) ([]ActualAlbum, error) {
+func (q *Queries) GetActualAlbums(ctx context.Context) ([]ActualAlbumPublished, error) {
 	rows, err := q.db.Query(ctx, getActualAlbums)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ActualAlbum
+	var items []ActualAlbumPublished
 	for rows.Next() {
-		var i ActualAlbum
+		var i ActualAlbumPublished
 		if err := rows.Scan(
 			&i.ID,
 			&i.Artist,
@@ -186,20 +192,20 @@ func (q *Queries) GetExcludedArtists(ctx context.Context) ([]string, error) {
 }
 
 const getLocalAlbums = `-- name: GetLocalAlbums :many
-SELECT artist, name
-FROM album
+SELECT artist, name, version_id
+FROM local_album_published
 `
 
-func (q *Queries) GetLocalAlbums(ctx context.Context) ([]Album, error) {
+func (q *Queries) GetLocalAlbums(ctx context.Context) ([]LocalAlbumPublished, error) {
 	rows, err := q.db.Query(ctx, getLocalAlbums)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Album
+	var items []LocalAlbumPublished
 	for rows.Next() {
-		var i Album
-		if err := rows.Scan(&i.Artist, &i.Name); err != nil {
+		var i LocalAlbumPublished
+		if err := rows.Scan(&i.Artist, &i.Name, &i.VersionID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -212,7 +218,7 @@ func (q *Queries) GetLocalAlbums(ctx context.Context) ([]Album, error) {
 
 const getLocalArtists = `-- name: GetLocalArtists :many
 SELECT DISTINCT artist
-FROM album
+FROM local_album_published
 `
 
 func (q *Queries) GetLocalArtists(ctx context.Context) ([]string, error) {
@@ -278,17 +284,18 @@ func (q *Queries) InsertCache(ctx context.Context, arg InsertCacheParams) error 
 }
 
 const insertLocalAlbum = `-- name: InsertLocalAlbum :exec
-INSERT INTO album (artist, name)
-VALUES ($1, $2) ON CONFLICT DO NOTHING
+INSERT INTO local_album (artist, name, version_id)
+VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
 `
 
 type InsertLocalAlbumParams struct {
-	Artist string
-	Name   string
+	Artist    string
+	Name      string
+	VersionID int32
 }
 
 func (q *Queries) InsertLocalAlbum(ctx context.Context, arg InsertLocalAlbumParams) error {
-	_, err := q.db.Exec(ctx, insertLocalAlbum, arg.Artist, arg.Name)
+	_, err := q.db.Exec(ctx, insertLocalAlbum, arg.Artist, arg.Name, arg.VersionID)
 	return err
 }
 
@@ -300,5 +307,16 @@ WHERE version_id = $1::int
 
 func (q *Queries) PublishActualVersion(ctx context.Context, version int32) error {
 	_, err := q.db.Exec(ctx, publishActualVersion, version)
+	return err
+}
+
+const publishLocalVersion = `-- name: PublishLocalVersion :exec
+UPDATE local_version
+SET published = TRUE
+WHERE version_id = $1::int
+`
+
+func (q *Queries) PublishLocalVersion(ctx context.Context, version int32) error {
+	_, err := q.db.Exec(ctx, publishLocalVersion, version)
 	return err
 }

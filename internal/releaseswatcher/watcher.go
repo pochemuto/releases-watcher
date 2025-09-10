@@ -63,10 +63,6 @@ func (w Watcher) UpdateActualLibrary() error {
 	if err != nil {
 		return fmt.Errorf("error creating new version: %w", err)
 	}
-	err = w.db.CreateActualAlbumPartition(context.Background(), version)
-	if err != nil {
-		return fmt.Errorf("error creating actual album partition: %w", err)
-	}
 	actualAlbums := make(chan sqlc.ActualAlbum, 100)
 	go w.lib.GetActualAlbumsForArtists(context.Background(), filteredArtists, actualAlbums)
 	count := 0
@@ -120,15 +116,13 @@ func (w Watcher) UpdateLocalLibrary() error {
 		close(tags)
 	}()
 
-	albums := make(map[sqlc.Album]bool)
-
-	tx, err := w.db.StartUpdateLocalAlbums(context.Background())
+	version, err := w.db.CreateLocalVersion(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating new version: %w", err)
 	}
-	defer tx.Commit(context.Background())
+	albums := make(map[sqlc.LocalAlbum]bool)
 	for tag := range tags {
-		album := sqlc.Album{
+		album := sqlc.LocalAlbum{
 			Artist: tag.Artist(),
 			Name:   tag.Album(),
 		}
@@ -137,7 +131,8 @@ func (w Watcher) UpdateLocalLibrary() error {
 			if !IsCorrect(album) {
 				log.Warnf("Incorrect tag %v", tag)
 			}
-			err := w.db.InsertLocalAlbum(context.Background(), tx, album)
+			album.VersionID = version.VersionID
+			err := w.db.InsertLocalAlbum(context.Background(), album)
 			if err != nil {
 				log.Errorf("Failed to write to db: %v", err)
 			}
@@ -146,6 +141,11 @@ func (w Watcher) UpdateLocalLibrary() error {
 		}
 	}
 
+	err = w.db.PublishLocalVersion(context.Background(), version)
+	if err != nil {
+		return fmt.Errorf("error publishing local version: %w", err)
+	}
+	log.Infof("Inserted total %d local albums in version %d", len(albums), version.VersionID)
 	return nil
 }
 
