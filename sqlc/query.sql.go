@@ -291,3 +291,14 @@ func (q *Queries) InsertLocalAlbum(ctx context.Context, arg InsertLocalAlbumPara
 	_, err := q.db.Exec(ctx, insertLocalAlbum, arg.Artist, arg.Name)
 	return err
 }
+
+const publishActualVersion = `-- name: PublishActualVersion :exec
+UPDATE actual_version
+SET published = TRUE
+WHERE version_id = $1::int
+`
+
+func (q *Queries) PublishActualVersion(ctx context.Context, version int32) error {
+	_, err := q.db.Exec(ctx, publishActualVersion, version)
+	return err
+}

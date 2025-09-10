@@ -45,3 +45,7 @@ RETURNING version_id,
 	published;
 -- name: CreateActualAlbumPartition :exec
 SELECT create_actual_album_partition(@version::int);
+-- name: PublishActualVersion :exec
+UPDATE actual_version
+SET published = TRUE
+WHERE version_id = @version::int;

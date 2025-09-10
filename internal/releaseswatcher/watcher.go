@@ -69,13 +69,23 @@ func (w Watcher) UpdateActualLibrary() error {
 	}
 	actualAlbums := make(chan sqlc.ActualAlbum, 100)
 	go w.lib.GetActualAlbumsForArtists(context.Background(), filteredArtists, actualAlbums)
+	count := 0
 	for actualAlbum := range actualAlbums {
 		actualAlbum.VersionID = version.VersionID
 		err := w.db.InsertActualAlbum(context.Background(), actualAlbum)
 		if err != nil {
 			return fmt.Errorf("error inserting actual album: %w", err)
 		}
+		count++
+		if count%100 == 0 {
+			log.Infof("Inserted %d actual albums", count)
+		}
 	}
+	err = w.db.PublishActualVersion(context.Background(), version)
+	if err != nil {
+		return fmt.Errorf("error publishing actual version: %w", err)
+	}
+	log.Infof("Inserted total %d actual albums in version %d", count, version.VersionID)
 	return nil
 }
 

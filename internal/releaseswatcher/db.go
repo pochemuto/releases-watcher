@@ -99,3 +99,7 @@ func (db DB) CreateActualVersion(ctx context.Context) (sqlc.ActualVersion, error
 func (db DB) CreateActualAlbumPartition(ctx context.Context, version sqlc.ActualVersion) error {
 	return db.queries.CreateActualAlbumPartition(ctx, version.VersionID)
 }
+
+func (db DB) PublishActualVersion(ctx context.Context, version sqlc.ActualVersion) error {
+	return db.queries.PublishActualVersion(ctx, version.VersionID)
+}
