@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"os"
+	"os/signal"
 	"sort"
+	"syscall"
 
 	"github.com/pochemuto/releases-watcher/internal/releaseswatcher"
 	"github.com/sirupsen/logrus"
@@ -19,32 +21,32 @@ func init() {
 	log.SetReportCaller(true)
 }
 
-func main() {
+func run(ctx context.Context) {
 	updateLocal := flag.Bool("update-local", false, "Update local library")
 	updateActual := flag.Bool("update-actual", false, "Update actual library")
 	diff := flag.Bool("diff", false, "Print diff")
 	flag.Parse()
 
-	app, err := releaseswatcher.InitializeApplication()
+	app, err := releaseswatcher.InitializeApplication(ctx)
 	watcher, differ := app.Watcher, app.Differ
 	if err != nil {
 		log.Fatal(err)
 	}
 	if *updateLocal {
-		err = watcher.UpdateLocalLibrary()
+		err = watcher.UpdateLocalLibrary(ctx)
 		if err != nil {
 			log.Fatalf("update local library error: %v", err)
 		}
 	}
 	if *updateActual {
-		err = watcher.UpdateActualLibrary()
+		err = watcher.UpdateActualLibrary(ctx)
 		if err != nil {
 			log.Fatalf("update actual library error: %v", err)
 		}
 	}
 
 	if *diff {
-		newAlbums, err := differ.Diff()
+		newAlbums, err := differ.Diff(ctx)
 		if err != nil {
 			log.Fatalf("error making diff: %v", err)
 		}
@@ -68,5 +70,10 @@ func main() {
 		log.Infof("Found %d new albums", albumCount)
 	}
 	log.Info("Done")
-	os.Exit(0)
+}
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	run(ctx)
 }

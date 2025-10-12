@@ -15,12 +15,12 @@ type DB struct {
 
 type ConnectionString string
 
-func NewPgxPool(connection ConnectionString) (*pgxpool.Pool, error) {
-	conn, err := pgxpool.New(context.Background(), string(connection))
+func NewPgxPool(ctx context.Context, connection ConnectionString) (*pgxpool.Pool, error) {
+	conn, err := pgxpool.New(ctx, string(connection))
 	if err != nil {
 		return nil, err
 	}
-	err = conn.Ping(context.Background())
+	err = conn.Ping(ctx)
 	if err != nil {
 		return nil, err
 	}

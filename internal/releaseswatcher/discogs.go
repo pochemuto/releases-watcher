@@ -53,12 +53,12 @@ func (l DiscogsLibrary) Name() string {
 	return "Discogs"
 }
 
-func (l DiscogsLibrary) api() discogs.Discogs {
-	l.limiter.Wait(context.Background())
+func (l DiscogsLibrary) api(ctx context.Context) discogs.Discogs {
+	l.limiter.Wait(ctx)
 	return l.discogs
 }
 
-func (l DiscogsLibrary) getRelease(releaseID int) (*discogs.Release, error) {
+func (l DiscogsLibrary) getRelease(ctx context.Context, releaseID int) (*discogs.Release, error) {
 	id := strconv.Itoa(releaseID)
 	freshness := 10 * 24 * time.Hour
 	if l.cached.releases == nil {
@@ -75,14 +75,14 @@ func (l DiscogsLibrary) getRelease(releaseID int) (*discogs.Release, error) {
 	}
 	return GetCached(l.cache, context.TODO(), "discogs_release", id,
 		freshness, func() (*discogs.Release, error) {
-			return l.api().Release(releaseID)
+			return l.api(ctx).Release(releaseID)
 		})
 }
 
-func (l DiscogsLibrary) getArtistID(artist string) (int, error) {
-	search, err := GetCached(l.cache, context.TODO(), "discogs_artist_search", artist, 10*24*time.Hour, func() (*discogs.Search, error) {
+func (l DiscogsLibrary) getArtistID(ctx context.Context, artist string) (int, error) {
+	search, err := GetCached(l.cache, ctx, "discogs_artist_search", artist, 10*24*time.Hour, func() (*discogs.Search, error) {
 		request := discogs.SearchRequest{Type: "artist", Q: artist, PerPage: 300}
-		return l.api().Search(request)
+		return l.api(ctx).Search(request)
 	})
 	if err != nil {
 		return 0, err
@@ -93,31 +93,31 @@ func (l DiscogsLibrary) getArtistID(artist string) (int, error) {
 	return search.Results[0].ID, nil
 }
 
-func (l DiscogsLibrary) getArtistReleases(artistID int, page int) (*discogs.ArtistReleases, error) {
+func (l DiscogsLibrary) getArtistReleases(ctx context.Context, artistID int, page int) (*discogs.ArtistReleases, error) {
 	id := fmt.Sprintf("%d_%d", artistID, page)
-	return GetCached(l.cache, context.TODO(), "discord_artist_releases",
+	return GetCached(l.cache, ctx, "discord_artist_releases",
 		id, 10*24*time.Hour, func() (*discogs.ArtistReleases, error) {
-			return l.api().ArtistReleases(artistID,
+			return l.api(ctx).ArtistReleases(artistID,
 				&discogs.Pagination{Page: page, PerPage: 500, Sort: "year", SortOrder: "asc"})
 		})
 }
 
-func (l DiscogsLibrary) getReleases(artist string) ([]discogs.Release, error) {
-	artistID, err := l.getArtistID(artist)
+func (l DiscogsLibrary) getReleases(ctx context.Context, artist string) ([]discogs.Release, error) {
+	artistID, err := l.getArtistID(ctx, artist)
 	if err != nil {
 		return nil, err
 	}
 	releases := make([]discogs.Release, 0)
 	page := 0
 	for {
-		resp, err := l.getArtistReleases(artistID, page)
+		resp, err := l.getArtistReleases(ctx, artistID, page)
 		if err != nil {
 			return nil, err
 		}
 		for i, r := range resp.Releases {
 			if r.Type == "master" && r.Role == "Main" {
 				log.Tracef("--- Fetched %d of %d [page %d/%d]", i+1, len(resp.Releases), page+1, resp.Pagination.Pages)
-				release, err := l.getRelease(r.MainRelease)
+				release, err := l.getRelease(ctx, r.MainRelease)
 				if err != nil {
 					return nil, err
 				}
@@ -144,8 +144,14 @@ func (l DiscogsLibrary) getReleases(artist string) ([]discogs.Release, error) {
 func (l DiscogsLibrary) GetActualAlbumsForArtists(ctx context.Context, artists []string, out chan<- sqlc.ActualAlbum) {
 	defer close(out)
 	for i, artist := range artists {
+		select {
+		case <-ctx.Done():
+			log.Infof("Context done, stopping fetching releases for artists")
+			return
+		default:
+		}
 		log.Tracef("Fetching for %s [%d of %d]", artist, i+1, len(artists))
-		releases, err := l.getReleases(artist)
+		releases, err := l.getReleases(ctx, artist)
 		if err != nil {
 			log.Errorf("Error when processing artist '%v': %v", artist, err)
 			continue

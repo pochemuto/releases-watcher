@@ -40,14 +40,14 @@ func NewWatcher(root RootPath, db DB, lib Library) (Watcher, error) {
 	return Watcher{root: root, db: db, lib: lib}, nil
 }
 
-func (w Watcher) UpdateActualLibrary() error {
-	artists, err := w.db.GetLocalArtists(context.Background())
+func (w Watcher) UpdateActualLibrary(ctx context.Context) error {
+	artists, err := w.db.GetLocalArtists(ctx)
 	log.Infof("Updating local library from %s for %d artists", w.lib.Name(), len(artists))
 	if err != nil {
 		return fmt.Errorf("error loading local artists: %w", err)
 	}
 
-	excludedArtists, err := w.db.GetExcludedArtists(context.Background())
+	excludedArtists, err := w.db.GetExcludedArtists(ctx)
 	if err != nil {
 		return fmt.Errorf("error loading excluded artists: %w", err)
 	}
@@ -60,16 +60,22 @@ func (w Watcher) UpdateActualLibrary() error {
 		}
 	}
 
-	version, err := w.db.CreateActualVersion(context.Background())
+	version, err := w.db.CreateActualVersion(ctx)
 	if err != nil {
 		return fmt.Errorf("error creating new version: %w", err)
 	}
 	actualAlbums := make(chan sqlc.ActualAlbum, 100)
-	go w.lib.GetActualAlbumsForArtists(context.Background(), filteredArtists, actualAlbums)
+	go w.lib.GetActualAlbumsForArtists(ctx, filteredArtists, actualAlbums)
 	count := 0
 	for actualAlbum := range actualAlbums {
+		select {
+		case <-ctx.Done():
+			log.Infof("Context is done, stopping inserting actual albums")
+			return nil
+		default:
+		}
 		actualAlbum.VersionID = version.VersionID
-		err := w.db.InsertActualAlbum(context.Background(), actualAlbum)
+		err := w.db.InsertActualAlbum(ctx, actualAlbum)
 		if err != nil {
 			return fmt.Errorf("error inserting actual album: %w", err)
 		}
@@ -78,7 +84,7 @@ func (w Watcher) UpdateActualLibrary() error {
 			log.Infof("Inserted %d actual albums", count)
 		}
 	}
-	err = w.db.PublishActualVersion(context.Background(), version)
+	err = w.db.PublishActualVersion(ctx, version)
 	if err != nil {
 		return fmt.Errorf("error publishing actual version: %w", err)
 	}
@@ -86,14 +92,14 @@ func (w Watcher) UpdateActualLibrary() error {
 	return nil
 }
 
-func (w Watcher) UpdateLocalLibrary() error {
+func (w Watcher) UpdateLocalLibrary(ctx context.Context) error {
 	log.Info("Updating local library")
 	filenames := make(chan string)
 	tags := make(chan tag.Metadata)
 
 	var filesnamesCount atomic.Int32
 	var processedCount atomic.Int32
-	go Scan(string(w.root), filenames, &filesnamesCount)
+	go Scan(ctx, string(w.root), filenames, &filesnamesCount)
 
 	var wg sync.WaitGroup
 
@@ -102,6 +108,12 @@ func (w Watcher) UpdateLocalLibrary() error {
 		go func() {
 			defer wg.Done()
 			for filename := range filenames {
+				select {
+				case <-ctx.Done():
+					log.Infof("Context is done, stopping worker")
+					return
+				default:
+				}
 				tag, err := ReadID3(filename)
 				processedCount.Add(1)
 				if err != nil {
@@ -117,12 +129,18 @@ func (w Watcher) UpdateLocalLibrary() error {
 		close(tags)
 	}()
 
-	version, err := w.db.CreateLocalVersion(context.Background())
+	version, err := w.db.CreateLocalVersion(ctx)
 	if err != nil {
 		return fmt.Errorf("error creating new version: %w", err)
 	}
 	albums := make(map[sqlc.LocalAlbum]bool)
 	for tag := range tags {
+		select {
+		case <-ctx.Done():
+			log.Infof("Context is done, stopping inserting local albums")
+			return nil
+		default:
+		}
 		album := sqlc.LocalAlbum{
 			Artist: tag.Artist(),
 			Name:   tag.Album(),
@@ -133,7 +151,7 @@ func (w Watcher) UpdateLocalLibrary() error {
 				log.Warnf("Incorrect tag %v", tag)
 			}
 			album.VersionID = version.VersionID
-			err := w.db.InsertLocalAlbum(context.Background(), album)
+			err := w.db.InsertLocalAlbum(ctx, album)
 			if err != nil {
 				log.Errorf("Failed to write to db: %v", err)
 			}
@@ -142,7 +160,7 @@ func (w Watcher) UpdateLocalLibrary() error {
 		}
 	}
 
-	err = w.db.PublishLocalVersion(context.Background(), version)
+	err = w.db.PublishLocalVersion(ctx, version)
 	if err != nil {
 		return fmt.Errorf("error publishing local version: %w", err)
 	}

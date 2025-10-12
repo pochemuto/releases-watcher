@@ -7,15 +7,17 @@
 package releaseswatcher
 
 import (
+	"context"
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 // Injectors from wire.go:
 
-func initializeApp(connection ConnectionString, token MusicBrainzToken, root RootPath) (Application, error) {
-	pool, err := NewPgxPool(connection)
+func initializeApp(ctx context.Context, connection ConnectionString, token MusicBrainzToken, root RootPath) (Application, error) {
+	pool, err := NewPgxPool(ctx, connection)
 	if err != nil {
 		return Application{}, err
 	}
@@ -57,7 +59,7 @@ func NewApplication(
 	}
 }
 
-func InitializeApplication() (Application, error) {
+func InitializeApplication(ctx context.Context) (Application, error) {
 	err := godotenv.Load()
 	if err != nil {
 		return Application{}, fmt.Errorf("error loading .env file: %w", err)
@@ -76,7 +78,7 @@ func InitializeApplication() (Application, error) {
 		return Application{}, fmt.Errorf("provide a ROOT")
 	}
 
-	app, err := initializeApp(connectionString, musicbrainzToken, root)
+	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root)
 	if err != nil {
 		return Application{}, fmt.Errorf("app initialization error: %w", err)
 	}

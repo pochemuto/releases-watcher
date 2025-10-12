@@ -1,6 +1,7 @@
 package releaseswatcher
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -24,10 +25,15 @@ func ReadID3(filepath string) (tag.Metadata, error) {
 	return tag, nil
 }
 
-func Scan(root string, filenames chan<- string, counter *atomic.Int32) error {
-	exluded_path := os.Getenv("EXCLUDED_PATH")
+func Scan(ctx context.Context, root string, filenames chan<- string, counter *atomic.Int32) error {
+	excluded_path := os.Getenv("EXCLUDED_PATH")
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if path == exluded_path {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if path == excluded_path {
 			log.Infof("Skipping dir %v", path)
 			return filepath.SkipDir
 		}
