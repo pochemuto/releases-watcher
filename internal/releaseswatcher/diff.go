@@ -89,15 +89,15 @@ func (d Differ) Diff(ctx context.Context) ([]sqlc.ActualAlbumPublished, error) {
 		normalizedArtist := normalizeString(*actual.Artist)
 
 		if _, localOk := localMap[normalizedAlbum]; localOk {
-			log.Tracef("Album exists locally, skipping: %s", normalizedAlbum)
+			log.Tracef("Album exists locally, skipping: %v", normalizedAlbum)
 			continue
 		}
 		if _, albumOk := excludedAlbumMap[normalizedAlbum]; albumOk {
-			log.Tracef("Album is excluded, skipping: %s", normalizedAlbum)
+			log.Tracef("Album is excluded, skipping: %v", normalizedAlbum)
 			continue
 		}
 		if _, artistOk := excludedArtistMap[normalizedArtist]; artistOk {
-			log.Tracef("Artist is excluded, skipping: %s", normalizedArtist)
+			log.Tracef("Artist is excluded, skipping: %v", normalizedArtist)
 			continue
 		}
 

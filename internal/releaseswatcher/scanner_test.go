@@ -2,6 +2,7 @@ package releaseswatcher
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -22,7 +23,7 @@ func TestScan(t *testing.T) {
 
 	ch := make(chan string, 10)
 	var counter atomic.Int32
-	err := Scan(tmp, ch, &counter)
+	err := Scan(context.Background(), tmp, ch, &counter)
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}

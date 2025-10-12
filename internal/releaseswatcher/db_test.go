@@ -41,7 +41,7 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 
 	var pgxPool *pgxpool.Pool
 	require.Eventually(t, func() bool {
-		pgxPool, err = NewPgxPool(ConnectionString(connString))
+		pgxPool, err = NewPgxPool(context.Background(), ConnectionString(connString))
 		return err == nil
 	}, time.Minute, time.Second)
 
@@ -90,17 +90,18 @@ func TestDB_InsertAndGetLocalAlbum(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	tx, err := db.StartUpdateLocalAlbums(ctx)
-	require.NoError(t, err)
 
-	album := sqlc.Album{
-		Artist: "Test Artist",
-		Name:   "Test Album",
+	version, err := db.CreateLocalVersion(ctx)
+	require.NoError(t, err)
+	album := sqlc.LocalAlbum{
+		Artist:    "Test Artist",
+		Name:      "Test Album",
+		VersionID: version.VersionID,
 	}
-	err = db.InsertLocalAlbum(ctx, tx, album)
+	err = db.InsertLocalAlbum(ctx, album)
 	require.NoError(t, err)
-	tx.Commit(ctx)
 
+	db.PublishLocalVersion(ctx, version)
 	albums, err := db.GetLocalAlbums(ctx)
 	require.NoError(t, err)
 	assert.Len(t, albums, 1)
@@ -108,25 +109,26 @@ func TestDB_InsertAndGetLocalAlbum(t *testing.T) {
 	assert.Equal(t, album.Name, albums[0].Name)
 }
 
-func TestDB_StartUpdateLocalAlbums(t *testing.T) {
+func TestDB_CreateLocalVersion(t *testing.T) {
 	pool := setupTestDB(t)
 	db, err := NewDB(pool)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	tx, err := db.StartUpdateLocalAlbums(ctx)
+
+	version, err := db.CreateLocalVersion(ctx)
 	require.NoError(t, err)
-	tx.Rollback(ctx) // Ensure rollback works without errors
+	assert.NotZero(t, version.VersionID, "VersionID should not be zero")
 }
 
-func TestDB_CreateVersion(t *testing.T) {
+func TestDB_CreateActualVersion(t *testing.T) {
 	pool := setupTestDB(t)
 	db, err := NewDB(pool)
 	require.NoError(t, err)
 
 	ctx := context.Background()
 
-	version, err := db.CreateVersion(ctx)
+	version, err := db.CreateLocalVersion(ctx)
 	require.NoError(t, err)
 	assert.NotZero(t, version.VersionID, "VersionID should not be zero")
 }

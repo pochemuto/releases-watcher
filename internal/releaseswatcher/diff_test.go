@@ -9,49 +9,49 @@ import (
 func TestNormalize(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    sqlc.Album
-		expected sqlc.Album
+		input    sqlc.LocalAlbumPublished
+		expected sqlc.LocalAlbumPublished
 	}{
 		{
 			name: "Normalize album with spaces and special characters",
-			input: sqlc.Album{
+			input: sqlc.LocalAlbumPublished{
 				Artist: "The Beatles (Remastered)",
 				Name:   "Abbey Road [Deluxe Edition]",
 			},
-			expected: sqlc.Album{
+			expected: sqlc.LocalAlbumPublished{
 				Artist: "thebeatles",
 				Name:   "abbeyroad",
 			},
 		},
 		{
 			name: "Normalize album with uppercase letters",
-			input: sqlc.Album{
+			input: sqlc.LocalAlbumPublished{
 				Artist: "QUEEN",
 				Name:   "A Night At The Opera",
 			},
-			expected: sqlc.Album{
+			expected: sqlc.LocalAlbumPublished{
 				Artist: "queen",
 				Name:   "anightattheopera",
 			},
 		},
 		{
 			name: "Normalize album with non-alphanumeric characters",
-			input: sqlc.Album{
+			input: sqlc.LocalAlbumPublished{
 				Artist: "David Bowie",
 				Name:   "★ (Blackstar)",
 			},
-			expected: sqlc.Album{
+			expected: sqlc.LocalAlbumPublished{
 				Artist: "davidbowie",
 				Name:   "★",
 			},
 		},
 		{
 			name: "Normalize empty album",
-			input: sqlc.Album{
+			input: sqlc.LocalAlbumPublished{
 				Artist: "",
 				Name:   "",
 			},
-			expected: sqlc.Album{
+			expected: sqlc.LocalAlbumPublished{
 				Artist: "",
 				Name:   "",
 			},

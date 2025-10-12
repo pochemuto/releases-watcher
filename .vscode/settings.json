@@ -5,6 +5,7 @@
         "musicbrainz",
         "releasegroup",
         "releasegroups",
+        "sqlc",
         "wireinject"
     ]
 }
