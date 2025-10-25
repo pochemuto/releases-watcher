@@ -60,7 +60,7 @@ func (q *Queries) CreateLocalVersion(ctx context.Context) (LocalVersion, error) 
 }
 
 const getActualAlbums = `-- name: GetActualAlbums :many
-SELECT id, artist, name, year, kind, version_id
+SELECT id, artist, name, year, kind, version_id, url
 FROM actual_album_published
 `
 
@@ -80,6 +80,7 @@ func (q *Queries) GetActualAlbums(ctx context.Context) ([]ActualAlbumPublished, 
 			&i.Year,
 			&i.Kind,
 			&i.VersionID,
+			&i.Url,
 		); err != nil {
 			return nil, err
 		}
@@ -246,8 +247,8 @@ func (q *Queries) GetLocalArtists(ctx context.Context) ([]string, error) {
 }
 
 const insertActualAlbum = `-- name: InsertActualAlbum :exec
-INSERT INTO actual_album (id, artist, name, year, kind, version_id)
-VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING
+INSERT INTO actual_album (id, artist, name, year, kind, version_id, url)
+VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING
 `
 
 type InsertActualAlbumParams struct {
@@ -257,6 +258,7 @@ type InsertActualAlbumParams struct {
 	Year      *int32
 	Kind      *string
 	VersionID int32
+	Url       *string
 }
 
 func (q *Queries) InsertActualAlbum(ctx context.Context, arg InsertActualAlbumParams) error {
@@ -267,6 +269,7 @@ func (q *Queries) InsertActualAlbum(ctx context.Context, arg InsertActualAlbumPa
 		arg.Year,
 		arg.Kind,
 		arg.VersionID,
+		arg.Url,
 	)
 	return err
 }

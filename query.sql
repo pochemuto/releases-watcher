@@ -16,8 +16,8 @@ WHERE entity = $1;
 INSERT INTO local_album (artist, name, version_id)
 VALUES ($1, $2, $3) ON CONFLICT DO NOTHING;
 -- name: InsertActualAlbum :exec
-INSERT INTO actual_album (id, artist, name, year, kind, version_id)
-VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING;
+INSERT INTO actual_album (id, artist, name, year, kind, version_id, url)
+VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING;
 -- name: GetCache :one
 SELECT value
 FROM cache

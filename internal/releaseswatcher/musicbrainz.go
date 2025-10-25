@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pochemuto/releases-watcher/sqlc"
+	"go.uber.org/thriftrw/ptr"
 	mbtypes "go.uploadedlobster.com/mbtypes"
 	"go.uploadedlobster.com/musicbrainzws2"
 	"golang.org/x/time/rate"
@@ -184,6 +185,7 @@ func (l MusicBrainzLibrary) GetActualAlbumsForArtists(ctx context.Context, artis
 				Name:   &release.Title,
 				Year:   &year,
 				Kind:   &kind,
+				Url:    ptr.String(fmt.Sprintf("https://musicbrainz.org/release/%s", release.ID)),
 			}
 			out <- actualAlbum
 		}

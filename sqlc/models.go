@@ -15,6 +15,7 @@ type ActualAlbum struct {
 	Year      *int32
 	Kind      *string
 	VersionID int32
+	Url       *string
 }
 
 type ActualAlbumPublished struct {
@@ -24,6 +25,7 @@ type ActualAlbumPublished struct {
 	Year      *int32
 	Kind      *string
 	VersionID int32
+	Url       *string
 }
 
 type ActualVersion struct {

@@ -83,6 +83,9 @@ CREATE TABLE public."actual_version" (
 	published bool DEFAULT false NOT NULL,
 	CONSTRAINT actual_version_pkey PRIMARY KEY (version_id)
 );
+-- ADD url column to actual_album
+ALTER TABLE public.actual_album
+ADD COLUMN url varchar COLLATE "ru-RU-x-icu";
 -- public.actual_album_published source
 CREATE OR REPLACE VIEW public.actual_album_published AS
 SELECT aa.id,
@@ -90,7 +93,8 @@ SELECT aa.id,
 	aa.name,
 	aa.year,
 	aa.kind,
-	aa.version_id
+	aa.version_id,
+	aa.url
 FROM actual_album aa
 	JOIN (
 		SELECT actual_version.version_id
