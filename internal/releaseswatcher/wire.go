@@ -54,9 +54,11 @@ func InitializeApplication(ctx context.Context) (Application, error) {
 		return Application{}, fmt.Errorf("provide a ROOT")
 	}
 
+	credentialsFile := GoogleCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+
 	spreadsheetID := SpreadsheetID(os.Getenv("GOOGLE_SHEETS_SPREADSHEET_ID"))
 
-	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root, spreadsheetID)
+	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root, spreadsheetID, credentialsFile)
 	if err != nil {
 		return Application{}, fmt.Errorf("app initialization error: %w", err)
 	}
@@ -70,6 +72,7 @@ func initializeApp(
 	token MusicBrainzToken,
 	root RootPath,
 	spreadsheetID SpreadsheetID,
+	credentialsFile GoogleCredentialsFile,
 ) (Application, error) {
 	wire.Build(NewDB,
 		NewMusicBrainzLibrary,

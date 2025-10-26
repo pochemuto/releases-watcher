@@ -15,7 +15,7 @@ import (
 
 // Injectors from wire.go:
 
-func initializeApp(ctx context.Context, connection ConnectionString, token MusicBrainzToken, root RootPath, spreadsheetID SpreadsheetID) (Application, error) {
+func initializeApp(ctx context.Context, connection ConnectionString, token MusicBrainzToken, root RootPath, spreadsheetID SpreadsheetID, credentialsFile GoogleCredentialsFile) (Application, error) {
 	pool, err := NewPgxPool(ctx, connection)
 	if err != nil {
 		return Application{}, err
@@ -34,7 +34,7 @@ func initializeApp(ctx context.Context, connection ConnectionString, token Music
 		return Application{}, err
 	}
 	differ := NewDiffer(db)
-	artistSettingsSheet, err := NewArtistSettingsSheet(ctx, spreadsheetID)
+	artistSettingsSheet, err := NewArtistSettingsSheet(ctx, spreadsheetID, credentialsFile)
 	if err != nil {
 		return Application{}, err
 	}
@@ -84,9 +84,11 @@ func InitializeApplication(ctx context.Context) (Application, error) {
 		return Application{}, fmt.Errorf("provide a ROOT")
 	}
 
+	credentialsFile := GoogleCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+
 	spreadsheetID := SpreadsheetID(os.Getenv("GOOGLE_SHEETS_SPREADSHEET_ID"))
 
-	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root, spreadsheetID)
+	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root, spreadsheetID, credentialsFile)
 	if err != nil {
 		return Application{}, fmt.Errorf("app initialization error: %w", err)
 	}

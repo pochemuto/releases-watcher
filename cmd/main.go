@@ -25,13 +25,14 @@ func run(ctx context.Context) {
 	updateLocal := flag.Bool("update-local", false, "Update local library")
 	updateActual := flag.Bool("update-actual", false, "Update actual library")
 	diff := flag.Bool("diff", false, "Print diff")
+	updateSettings := flag.Bool("update-settings", false, "Write local artists to Google Sheets settings")
 	flag.Parse()
 
 	app, err := releaseswatcher.InitializeApplication(ctx)
-	watcher, differ := app.Watcher, app.Differ
 	if err != nil {
 		log.Fatal(err)
 	}
+	watcher, differ := app.Watcher, app.Differ
 	if *updateLocal {
 		err = watcher.UpdateLocalLibrary(ctx)
 		if err != nil {
@@ -42,6 +43,17 @@ func run(ctx context.Context) {
 		err = watcher.UpdateActualLibrary(ctx)
 		if err != nil {
 			log.Fatalf("update actual library error: %v", err)
+		}
+	}
+
+	if *updateSettings {
+		artists, err := app.DB.GetLocalArtists(ctx)
+		if err != nil {
+			log.Fatalf("load local artists error: %v", err)
+		}
+		err = app.ArtistSettings.UpdateArtistsInSettings(ctx, artists)
+		if err != nil {
+			log.Fatalf("update settings in sheet error: %v", err)
 		}
 	}
 

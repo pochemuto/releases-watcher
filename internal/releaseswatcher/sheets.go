@@ -3,6 +3,8 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
+	"os"
+	"sort"
 	"strings"
 
 	"google.golang.org/api/option"
@@ -10,16 +12,19 @@ import (
 )
 
 const (
-	settingsSheetName   = "Настройки"
-	headerRange         = settingsSheetName + "!A1:B1"
-	settingsDataRange   = settingsSheetName + "!A2:B"
-	defaultHeaderTitle  = "Artist"
-	defaultHeaderNotice = "Notification"
+	settingsSheetName    = "Настройки"
+	headerRange          = settingsSheetName + "!A1:B1"
+	settingsDataRange    = settingsSheetName + "!A2:B"
+	defaultHeaderTitle   = "Artist"
+	defaultHeaderNotice  = "Notification"
+	DefaultCredentialsFN = "google-credentials.json"
 )
 
 type SpreadsheetID string
 
 const DefaultSpreadsheetID SpreadsheetID = "1j-xtIRVbdzguaBoaW3l52VMmVJmOtP4lggR7O3yW9E8"
+
+type GoogleCredentialsFile string
 
 type NotificationSetting string
 
@@ -65,8 +70,22 @@ type GoogleSheetsArtistSettings struct {
 	spreadsheetID SpreadsheetID
 }
 
-func NewArtistSettingsSheet(ctx context.Context, spreadsheetID SpreadsheetID) (ArtistSettingsSheet, error) {
-	service, err := sheets.NewService(ctx, option.WithScopes(sheets.SpreadsheetsScope))
+func NewArtistSettingsSheet(ctx context.Context, spreadsheetID SpreadsheetID, credentialsFile GoogleCredentialsFile) (ArtistSettingsSheet, error) {
+	if credentialsFile == "" {
+		credentialsFile = GoogleCredentialsFile(DefaultCredentialsFN)
+	}
+
+	opts := []option.ClientOption{
+		option.WithScopes(sheets.SpreadsheetsScope),
+	}
+	if credentialsFile != "" {
+		if _, err := os.Stat(string(credentialsFile)); err != nil {
+			return nil, fmt.Errorf("check credentials file: %w", err)
+		}
+		opts = append(opts, option.WithCredentialsFile(string(credentialsFile)))
+	}
+
+	service, err := sheets.NewService(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sheets client: %w", err)
 	}
@@ -128,6 +147,8 @@ func (g *GoogleSheetsArtistSettings) UpdateArtistsInSettings(ctx context.Context
 		seen[name] = struct{}{}
 		uniqueArtists = append(uniqueArtists, name)
 	}
+
+	sort.Strings(uniqueArtists)
 
 	rows := make([][]interface{}, 0, len(uniqueArtists))
 

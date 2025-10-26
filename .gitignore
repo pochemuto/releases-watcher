@@ -1,3 +1,4 @@
 .env
 release-watcher
 watcher
+google-credentials.json
