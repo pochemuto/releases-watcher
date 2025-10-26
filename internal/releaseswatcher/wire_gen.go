@@ -9,14 +9,13 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
-	"os"
-
 	"github.com/joho/godotenv"
+	"os"
 )
 
 // Injectors from wire.go:
 
-func initializeApp(ctx context.Context, connection ConnectionString, token MusicBrainzToken, root RootPath) (Application, error) {
+func initializeApp(ctx context.Context, connection ConnectionString, token MusicBrainzToken, root RootPath, spreadsheetID SpreadsheetID) (Application, error) {
 	pool, err := NewPgxPool(ctx, connection)
 	if err != nil {
 		return Application{}, err
@@ -35,27 +34,34 @@ func initializeApp(ctx context.Context, connection ConnectionString, token Music
 		return Application{}, err
 	}
 	differ := NewDiffer(db)
-	application := NewApplication(db, watcher, differ)
+	artistSettingsSheet, err := NewArtistSettingsSheet(ctx, spreadsheetID)
+	if err != nil {
+		return Application{}, err
+	}
+	application := NewApplication(db, watcher, differ, artistSettingsSheet)
 	return application, nil
 }
 
 // wire.go:
 
 type Application struct {
-	DB      DB
-	Watcher Watcher
-	Differ  Differ
+	DB             DB
+	Watcher        Watcher
+	Differ         Differ
+	ArtistSettings ArtistSettingsSheet
 }
 
 func NewApplication(
 	db DB,
 	watcher Watcher,
 	differ Differ,
+	artistSettings ArtistSettingsSheet,
 ) Application {
 	return Application{
-		DB:      db,
-		Watcher: watcher,
-		Differ:  differ,
+		DB:             db,
+		Watcher:        watcher,
+		Differ:         differ,
+		ArtistSettings: artistSettings,
 	}
 }
 
@@ -78,7 +84,9 @@ func InitializeApplication(ctx context.Context) (Application, error) {
 		return Application{}, fmt.Errorf("provide a ROOT")
 	}
 
-	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root)
+	spreadsheetID := SpreadsheetID(os.Getenv("GOOGLE_SHEETS_SPREADSHEET_ID"))
+
+	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root, spreadsheetID)
 	if err != nil {
 		return Application{}, fmt.Errorf("app initialization error: %w", err)
 	}

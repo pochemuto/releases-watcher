@@ -15,20 +15,23 @@ import (
 )
 
 type Application struct {
-	DB      DB
-	Watcher Watcher
-	Differ  Differ
+	DB             DB
+	Watcher        Watcher
+	Differ         Differ
+	ArtistSettings ArtistSettingsSheet
 }
 
 func NewApplication(
 	db DB,
 	watcher Watcher,
 	differ Differ,
+	artistSettings ArtistSettingsSheet,
 ) Application {
 	return Application{
-		DB:      db,
-		Watcher: watcher,
-		Differ:  differ,
+		DB:             db,
+		Watcher:        watcher,
+		Differ:         differ,
+		ArtistSettings: artistSettings,
 	}
 }
 
@@ -51,7 +54,9 @@ func InitializeApplication(ctx context.Context) (Application, error) {
 		return Application{}, fmt.Errorf("provide a ROOT")
 	}
 
-	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root)
+	spreadsheetID := SpreadsheetID(os.Getenv("GOOGLE_SHEETS_SPREADSHEET_ID"))
+
+	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root, spreadsheetID)
 	if err != nil {
 		return Application{}, fmt.Errorf("app initialization error: %w", err)
 	}
@@ -64,6 +69,7 @@ func initializeApp(
 	connection ConnectionString,
 	token MusicBrainzToken,
 	root RootPath,
+	spreadsheetID SpreadsheetID,
 ) (Application, error) {
 	wire.Build(NewDB,
 		NewMusicBrainzLibrary,
@@ -73,6 +79,7 @@ func initializeApp(
 		NewCache,
 		NewPgxPool,
 		NewDiffer,
+		NewArtistSettingsSheet,
 	)
 	return Application{}, nil
 }
