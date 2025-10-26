@@ -3,6 +3,7 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -141,23 +142,26 @@ func (w Watcher) UpdateLocalLibrary(ctx context.Context) error {
 			return nil
 		default:
 		}
-		album := sqlc.LocalAlbum{
-			Artist: tag.Artist(),
-			Name:   tag.Album(),
+		albumKey := sqlc.LocalAlbum{
+			Artist: strings.TrimSpace(tag.Artist()),
+			Name:   strings.TrimSpace(tag.Album()),
 		}
-		if _, present := albums[album]; !present {
-			albums[album] = true
-			if !IsCorrect(album) {
-				log.Warnf("Incorrect tag %v", tag)
-			}
-			album.VersionID = version.VersionID
-			err := w.db.InsertLocalAlbum(ctx, album)
-			if err != nil {
-				log.Errorf("Failed to write to db: %v", err)
-			}
-			log.Tracef("Read %d/%d %s - %s", processedCount.Load(), filesnamesCount.Load(),
-				album.Artist, album.Name)
+		if !IsCorrect(albumKey) {
+			log.Warnf("Incorrect tag %v", tag)
+			continue
 		}
+		if _, present := albums[albumKey]; present {
+			continue
+		}
+		albums[albumKey] = true
+		album := albumKey
+		album.VersionID = version.VersionID
+		err := w.db.InsertLocalAlbum(ctx, album)
+		if err != nil {
+			log.Errorf("Failed to write to db: %v", err)
+		}
+		log.Tracef("Read %d/%d %s - %s", processedCount.Load(), filesnamesCount.Load(),
+			album.Artist, album.Name)
 	}
 
 	err = w.db.PublishLocalVersion(ctx, version)
