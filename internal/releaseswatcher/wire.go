@@ -15,23 +15,23 @@ import (
 )
 
 type Application struct {
-	DB             DB
-	Watcher        Watcher
-	Differ         Differ
-	ArtistSettings ArtistSettingsSheet
+	DB      DB
+	Watcher Watcher
+	Differ  Differ
+	Sheets  *GoogleSheets
 }
 
 func NewApplication(
 	db DB,
 	watcher Watcher,
 	differ Differ,
-	artistSettings ArtistSettingsSheet,
+	sheets *GoogleSheets,
 ) Application {
 	return Application{
-		DB:             db,
-		Watcher:        watcher,
-		Differ:         differ,
-		ArtistSettings: artistSettings,
+		DB:      db,
+		Watcher: watcher,
+		Differ:  differ,
+		Sheets:  sheets,
 	}
 }
 
@@ -82,7 +82,7 @@ func initializeApp(
 		NewCache,
 		NewPgxPool,
 		NewDiffer,
-		NewArtistSettingsSheet,
+		NewGoogleSheets,
 	)
 	return Application{}, nil
 }

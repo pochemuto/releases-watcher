@@ -51,7 +51,7 @@ func run(ctx context.Context) {
 		if err != nil {
 			log.Fatalf("load local artists error: %v", err)
 		}
-		err = app.ArtistSettings.UpdateArtistsInSettings(ctx, artists)
+		err = app.Sheets.UpdateArtistsInSettings(ctx, artists)
 		if err != nil {
 			log.Fatalf("update settings in sheet error: %v", err)
 		}
@@ -78,7 +78,7 @@ func run(ctx context.Context) {
 					*newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind, newAlbum.ID)
 			}
 		}
-
+		app.Sheets.UpdateReleases(ctx, newAlbums)
 		log.Infof("Found %d new albums", albumCount)
 	}
 	log.Info("Done")

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pochemuto/releases-watcher/sqlc"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
@@ -18,6 +19,10 @@ const (
 	defaultHeaderTitle   = "Artist"
 	defaultHeaderNotice  = "Notification"
 	DefaultCredentialsFN = "google-credentials.json"
+
+	releasesSheetName  = "Релизы"
+	releasesRange      = releasesSheetName + "!A1:E"
+	releasesClearRange = releasesSheetName + "!A:E"
 )
 
 type SpreadsheetID string
@@ -60,17 +65,12 @@ type ArtistSetting struct {
 	Notification NotificationSetting
 }
 
-type ArtistSettingsSheet interface {
-	GetArtistSettings(ctx context.Context) ([]ArtistSetting, error)
-	UpdateArtistsInSettings(ctx context.Context, artists []string) error
-}
-
-type GoogleSheetsArtistSettings struct {
+type GoogleSheets struct {
 	service       *sheets.Service
 	spreadsheetID SpreadsheetID
 }
 
-func NewArtistSettingsSheet(ctx context.Context, spreadsheetID SpreadsheetID, credentialsFile GoogleCredentialsFile) (ArtistSettingsSheet, error) {
+func NewGoogleSheets(ctx context.Context, spreadsheetID SpreadsheetID, credentialsFile GoogleCredentialsFile) (*GoogleSheets, error) {
 	if credentialsFile == "" {
 		credentialsFile = GoogleCredentialsFile(DefaultCredentialsFN)
 	}
@@ -92,13 +92,13 @@ func NewArtistSettingsSheet(ctx context.Context, spreadsheetID SpreadsheetID, cr
 	if spreadsheetID == "" {
 		spreadsheetID = DefaultSpreadsheetID
 	}
-	return &GoogleSheetsArtistSettings{
+	return &GoogleSheets{
 		service:       service,
 		spreadsheetID: spreadsheetID,
 	}, nil
 }
 
-func (g *GoogleSheetsArtistSettings) GetArtistSettings(ctx context.Context) ([]ArtistSetting, error) {
+func (g *GoogleSheets) GetArtistSettings(ctx context.Context) ([]ArtistSetting, error) {
 	header, settings, err := g.readSettings(ctx)
 	if err != nil {
 		return nil, err
@@ -107,18 +107,18 @@ func (g *GoogleSheetsArtistSettings) GetArtistSettings(ctx context.Context) ([]A
 	return settings, nil
 }
 
-func (g *GoogleSheetsArtistSettings) UpdateArtistsInSettings(ctx context.Context, artists []string) error {
+func (g *GoogleSheets) UpdateArtistsInSettings(ctx context.Context, artists []string) error {
 	header, settings, err := g.readSettings(ctx)
 	if err != nil {
 		return err
 	}
 
 	if len(header) == 0 || isHeaderEmpty(header) {
-		newHeader := []interface{}{defaultHeaderTitle, defaultHeaderNotice}
+		newHeader := []any{defaultHeaderTitle, defaultHeaderNotice}
 		valueRange := &sheets.ValueRange{
 			MajorDimension: "ROWS",
 			Range:          headerRange,
-			Values:         [][]interface{}{newHeader},
+			Values:         [][]any{newHeader},
 		}
 		if _, err := g.service.Spreadsheets.Values.Update(string(g.spreadsheetID), headerRange, valueRange).
 			ValueInputOption("RAW").
@@ -150,14 +150,14 @@ func (g *GoogleSheetsArtistSettings) UpdateArtistsInSettings(ctx context.Context
 
 	sort.Strings(uniqueArtists)
 
-	rows := make([][]interface{}, 0, len(uniqueArtists))
+	rows := make([][]any, 0, len(uniqueArtists))
 
 	for _, artist := range uniqueArtists {
 		notification, ok := existingNotifications[artist]
 		if !ok {
 			notification = NotificationAllReleases
 		}
-		rows = append(rows, []interface{}{artist, notification.String()})
+		rows = append(rows, []any{artist, notification.String()})
 	}
 
 	clearRequest := &sheets.ClearValuesRequest{}
@@ -185,7 +185,63 @@ func (g *GoogleSheetsArtistSettings) UpdateArtistsInSettings(ctx context.Context
 	return nil
 }
 
-func (g *GoogleSheetsArtistSettings) readSettings(ctx context.Context) ([]interface{}, []ArtistSetting, error) {
+func (g *GoogleSheets) UpdateReleases(ctx context.Context, releases []sqlc.ActualAlbumPublished) error {
+	rows := make([][]any, 0, len(releases)+1)
+	rows = append(rows, []any{"Артист", "Альбом", "Тип", "Год", "Ссылка"})
+
+	for _, release := range releases {
+		artist := ""
+		if release.Artist != nil {
+			artist = *release.Artist
+		}
+
+		album := ""
+		if release.Name != nil {
+			album = *release.Name
+		}
+
+		kind := ""
+		if release.Kind != nil {
+			kind = *release.Kind
+		}
+
+		var year any
+		if release.Year != nil {
+			year = int(*release.Year)
+		} else {
+			year = ""
+		}
+
+		link := ""
+		if release.Url != nil {
+			link = *release.Url
+		}
+
+		rows = append(rows, []any{artist, album, kind, year, link})
+	}
+
+	clearRequest := &sheets.ClearValuesRequest{}
+	if _, err := g.service.Spreadsheets.Values.Clear(string(g.spreadsheetID), releasesClearRange, clearRequest).Context(ctx).Do(); err != nil {
+		return fmt.Errorf("clear releases range: %w", err)
+	}
+
+	valueRange := &sheets.ValueRange{
+		MajorDimension: "ROWS",
+		Range:          releasesRange,
+		Values:         rows,
+	}
+
+	if _, err := g.service.Spreadsheets.Values.Update(string(g.spreadsheetID), releasesRange, valueRange).
+		ValueInputOption("RAW").
+		Context(ctx).
+		Do(); err != nil {
+		return fmt.Errorf("update releases range: %w", err)
+	}
+
+	return nil
+}
+
+func (g *GoogleSheets) readSettings(ctx context.Context) ([]any, []ArtistSetting, error) {
 	headerResp, err := g.service.Spreadsheets.Values.Get(string(g.spreadsheetID), headerRange).
 		Context(ctx).
 		MajorDimension("ROWS").
@@ -194,7 +250,7 @@ func (g *GoogleSheetsArtistSettings) readSettings(ctx context.Context) ([]interf
 		return nil, nil, fmt.Errorf("fetch header: %w", err)
 	}
 
-	var header []interface{}
+	var header []any
 	if headerResp != nil && len(headerResp.Values) > 0 {
 		header = cloneRow(headerResp.Values[0])
 	}
@@ -234,16 +290,16 @@ func (g *GoogleSheetsArtistSettings) readSettings(ctx context.Context) ([]interf
 	return header, settings, nil
 }
 
-func cloneRow(row []interface{}) []interface{} {
+func cloneRow(row []any) []any {
 	if row == nil {
 		return nil
 	}
-	clone := make([]interface{}, len(row))
+	clone := make([]any, len(row))
 	copy(clone, row)
 	return clone
 }
 
-func isHeaderEmpty(row []interface{}) bool {
+func isHeaderEmpty(row []any) bool {
 	if len(row) == 0 {
 		return true
 	}

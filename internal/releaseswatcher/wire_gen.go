@@ -9,8 +9,9 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 // Injectors from wire.go:
@@ -34,34 +35,34 @@ func initializeApp(ctx context.Context, connection ConnectionString, token Music
 		return Application{}, err
 	}
 	differ := NewDiffer(db)
-	artistSettingsSheet, err := NewArtistSettingsSheet(ctx, spreadsheetID, credentialsFile)
+	sheetsClient, err := NewGoogleSheets(ctx, spreadsheetID, credentialsFile)
 	if err != nil {
 		return Application{}, err
 	}
-	application := NewApplication(db, watcher, differ, artistSettingsSheet)
+	application := NewApplication(db, watcher, differ, sheetsClient)
 	return application, nil
 }
 
 // wire.go:
 
 type Application struct {
-	DB             DB
-	Watcher        Watcher
-	Differ         Differ
-	ArtistSettings ArtistSettingsSheet
+	DB      DB
+	Watcher Watcher
+	Differ  Differ
+	Sheets  *GoogleSheets
 }
 
 func NewApplication(
 	db DB,
 	watcher Watcher,
 	differ Differ,
-	artistSettings ArtistSettingsSheet,
+	sheets *GoogleSheets,
 ) Application {
 	return Application{
-		DB:             db,
-		Watcher:        watcher,
-		Differ:         differ,
-		ArtistSettings: artistSettings,
+		DB:      db,
+		Watcher: watcher,
+		Differ:  differ,
+		Sheets:  sheets,
 	}
 }
 
