@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"io/fs"
 	"os/signal"
 	"sort"
 	"syscall"
 
+	"github.com/joho/godotenv"
 	"github.com/pochemuto/releases-watcher/internal/releaseswatcher"
 	"github.com/sirupsen/logrus"
 )
@@ -27,6 +30,11 @@ func run(ctx context.Context) {
 	diff := flag.Bool("diff", false, "Print diff")
 	updateSettings := flag.Bool("update-settings", false, "Write local artists to Google Sheets settings")
 	flag.Parse()
+
+	err := godotenv.Load()
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		log.Fatalf("error loading .env file: %v", err)
+	}
 
 	app, err := releaseswatcher.InitializeApplication(ctx)
 	if err != nil {

@@ -10,8 +10,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-
-	"github.com/joho/godotenv"
 )
 
 // Injectors from wire.go:
@@ -35,11 +33,11 @@ func initializeApp(ctx context.Context, connection ConnectionString, token Music
 		return Application{}, err
 	}
 	differ := NewDiffer(db)
-	sheetsClient, err := NewGoogleSheets(ctx, spreadsheetID, credentialsFile)
+	googleSheets, err := NewGoogleSheets(ctx, spreadsheetID, credentialsFile)
 	if err != nil {
 		return Application{}, err
 	}
-	application := NewApplication(db, watcher, differ, sheetsClient)
+	application := NewApplication(db, watcher, differ, googleSheets)
 	return application, nil
 }
 
@@ -67,11 +65,6 @@ func NewApplication(
 }
 
 func InitializeApplication(ctx context.Context) (Application, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return Application{}, fmt.Errorf("error loading .env file: %w", err)
-	}
-
 	connectionString := ConnectionString(os.Getenv("PGCONNECTION"))
 	if connectionString == "" {
 		return Application{}, fmt.Errorf("provide a connection string PGCONNECTION")

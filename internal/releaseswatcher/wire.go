@@ -11,7 +11,6 @@ import (
 	"os"
 
 	"github.com/google/wire"
-	"github.com/joho/godotenv"
 )
 
 type Application struct {
@@ -36,11 +35,6 @@ func NewApplication(
 }
 
 func InitializeApplication(ctx context.Context) (Application, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return Application{}, fmt.Errorf("error loading .env file: %w", err)
-	}
-
 	connectionString := ConnectionString(os.Getenv("PGCONNECTION"))
 	if connectionString == "" {
 		return Application{}, fmt.Errorf("provide a connection string PGCONNECTION")
