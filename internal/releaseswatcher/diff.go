@@ -3,9 +3,7 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
-	"os"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/pochemuto/releases-watcher/sqlc"
@@ -13,17 +11,17 @@ import (
 
 type Differ struct {
 	db         DB
-	cutoffYear int
+	cutoffYear uint
 }
 
-func NewDiffer(db DB) Differ {
-	cutoffYear, err := strconv.Atoi(os.Getenv("ALBUMS_CUTOFF_YEAR"))
-	if err != nil {
-		log.Warnf("Error parsing ALBUMS_CUTOFF_YEAR: %v", err)
-	}
+type DifferConfig struct {
+	CutoffYear uint
+}
+
+func NewDiffer(db DB, config DifferConfig) Differ {
 	return Differ{
 		db:         db,
-		cutoffYear: cutoffYear,
+		cutoffYear: config.CutoffYear,
 	}
 }
 

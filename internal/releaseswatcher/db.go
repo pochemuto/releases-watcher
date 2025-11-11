@@ -13,10 +13,12 @@ type DB struct {
 	queries *sqlc.Queries
 }
 
-type ConnectionString string
+type DbConfig struct {
+	ConnectionString string
+}
 
-func NewPgxPool(ctx context.Context, connection ConnectionString) (*pgxpool.Pool, error) {
-	conn, err := pgxpool.New(ctx, string(connection))
+func NewPgxPool(ctx context.Context, config DbConfig) (*pgxpool.Pool, error) {
+	conn, err := pgxpool.New(ctx, config.ConnectionString)
 	if err != nil {
 		return nil, err
 	}

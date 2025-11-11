@@ -21,19 +21,21 @@ type MusicBrainzLibrary struct {
 	limiter *rate.Limiter
 }
 
-type MusicBrainzToken string
+type MusicBrainzConfig struct {
+	Token string
+}
 
 func days(d int) time.Duration {
 	return time.Duration(d) * 24 * time.Hour
 }
 
-func NewMusicBrainzLibrary(token MusicBrainzToken, db DB, cache Cache) (MusicBrainzLibrary, error) {
-	if token == "" {
+func NewMusicBrainzLibrary(config MusicBrainzConfig, db DB, cache Cache) (MusicBrainzLibrary, error) {
+	if config.Token == "" {
 		return MusicBrainzLibrary{}, fmt.Errorf("token is empty")
 	}
 	appInfo := musicbrainzws2.AppInfo{Name: "Releases Watcher", Version: "1.0"}
 	mb := musicbrainzws2.NewClient(appInfo)
-	mb.SetAuthToken(string(token))
+	mb.SetAuthToken(config.Token)
 	return MusicBrainzLibrary{
 		db:      db,
 		cache:   cache,

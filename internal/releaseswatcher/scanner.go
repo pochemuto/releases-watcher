@@ -25,8 +25,8 @@ func ReadID3(filepath string) (tag.Metadata, error) {
 	return tag, nil
 }
 
-func Scan(ctx context.Context, root string, filenames chan<- string, counter *atomic.Int32) error {
-	excluded_path := os.Getenv("EXCLUDED_PATH")
+func Scan(ctx context.Context, root string, excluded_path string,
+	filenames chan<- string, counter *atomic.Int32) error {
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		select {
 		case <-ctx.Done():
@@ -42,6 +42,7 @@ func Scan(ctx context.Context, root string, filenames chan<- string, counter *at
 		}
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".mp3" || ext == ".m4a" {
+
 			filenames <- path
 			counter.Add(1)
 		}
@@ -50,6 +51,7 @@ func Scan(ctx context.Context, root string, filenames chan<- string, counter *at
 	if err != nil {
 		return err
 	}
-	close(filenames)
+	close(
+		filenames)
 	return nil
 }

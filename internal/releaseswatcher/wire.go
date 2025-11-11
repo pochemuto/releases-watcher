@@ -20,6 +20,14 @@ type Application struct {
 	Sheets  *GoogleSheets
 }
 
+type Config struct {
+	WatcherConfig
+	Db          DbConfig
+	Diff        DifferConfig
+	Discogs     DiscogsConfig
+	MusicBrainz MusicBrainzConfig
+}
+
 func NewApplication(
 	db DB,
 	watcher Watcher,

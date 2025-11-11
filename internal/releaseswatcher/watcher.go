@@ -24,7 +24,10 @@ func init() {
 	})
 }
 
-type RootPath string
+type WatcherConfig struct {
+	RootPath     string
+	ExcludedPath string
+}
 
 type Library interface {
 	GetActualAlbumsForArtists(ctx context.Context, artists []string, out chan<- sqlc.ActualAlbum)
@@ -32,13 +35,14 @@ type Library interface {
 }
 
 type Watcher struct {
-	db   DB
-	lib  Library
-	root RootPath
+	db           DB
+	lib          Library
+	root         string
+	excludedPath string
 }
 
-func NewWatcher(root RootPath, db DB, lib Library) (Watcher, error) {
-	return Watcher{root: root, db: db, lib: lib}, nil
+func NewWatcher(config WatcherConfig, db DB, lib Library) (Watcher, error) {
+	return Watcher{root: config.RootPath, excludedPath: config.ExcludedPath, db: db, lib: lib}, nil
 }
 
 func (w Watcher) UpdateActualLibrary(ctx context.Context) error {

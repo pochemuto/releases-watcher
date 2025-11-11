@@ -2,6 +2,7 @@ package releaseswatcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/irlndts/go-discogs"
 	"github.com/pochemuto/releases-watcher/sqlc"
-	"golang.org/x/crypto/openpgp/errors"
 	"golang.org/x/time/rate"
 )
 
@@ -26,15 +26,17 @@ type DiscogsLibrary struct {
 	cached  *cached
 }
 
-type DiscogsToken string
+type DiscogsConfig struct {
+	Token string
+}
 
-func NewDiscogsLibrary(token DiscogsToken, db DB, cache Cache) (DiscogsLibrary, error) {
-	if token == "" {
-		return DiscogsLibrary{}, errors.InvalidArgumentError("Token is empty")
+func NewDiscogsLibrary(config DiscogsConfig, db DB, cache Cache) (DiscogsLibrary, error) {
+	if config.Token == "" {
+		return DiscogsLibrary{}, errors.New("token is empty")
 	}
 	client, err := discogs.New(&discogs.Options{
 		UserAgent: "Releases Watcher",
-		Token:     string(token),
+		Token:     config.Token,
 		URL:       "https://api.discogs.com", // optional
 	})
 	if err != nil {
