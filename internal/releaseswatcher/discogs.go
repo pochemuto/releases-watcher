@@ -90,7 +90,7 @@ func (l DiscogsLibrary) getArtistID(ctx context.Context, artist string) (int, er
 		return 0, err
 	}
 	if len(search.Results) == 0 {
-		return 0, errors.InvalidArgumentError("Artist '" + artist + "' not found")
+		return 0, errors.New("Artist '" + artist + "' not found")
 	}
 	return search.Results[0].ID, nil
 }

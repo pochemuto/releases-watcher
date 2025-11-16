@@ -11,6 +11,7 @@ import (
 
 type Differ struct {
 	db         DB
+	sheets     GoogleSheets
 	cutoffYear uint
 }
 
@@ -18,9 +19,10 @@ type DifferConfig struct {
 	CutoffYear uint
 }
 
-func NewDiffer(db DB, config DifferConfig) Differ {
+func NewDiffer(db DB, config DifferConfig, sheets GoogleSheets) Differ {
 	return Differ{
 		db:         db,
+		sheets:     sheets,
 		cutoffYear: config.CutoffYear,
 	}
 }

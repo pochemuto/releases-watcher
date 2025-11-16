@@ -9,13 +9,14 @@ package releaseswatcher
 import (
 	"context"
 	"fmt"
-	"os"
+	"github.com/caarlos0/env/v11"
 )
 
 // Injectors from wire.go:
 
-func initializeApp(ctx context.Context, connection ConnectionString, token MusicBrainzToken, root RootPath, spreadsheetID SpreadsheetID, credentialsFile GoogleCredentialsFile) (Application, error) {
-	pool, err := NewPgxPool(ctx, connection)
+func initializeApp(ctx context.Context, config Config) (Application, error) {
+	dbConfig := config.Db
+	pool, err := NewPgxPool(ctx, dbConfig)
 	if err != nil {
 		return Application{}, err
 	}
@@ -23,20 +24,24 @@ func initializeApp(ctx context.Context, connection ConnectionString, token Music
 	if err != nil {
 		return Application{}, err
 	}
+	watcherConfig := config.WatcherConfig
+	musicBrainzConfig := config.MusicBrainz
 	cache := NewCache(pool)
-	musicBrainzLibrary, err := NewMusicBrainzLibrary(token, db, cache)
+	musicBrainzLibrary, err := NewMusicBrainzLibrary(musicBrainzConfig, db, cache)
 	if err != nil {
 		return Application{}, err
 	}
-	watcher, err := NewWatcher(root, db, musicBrainzLibrary)
+	watcher, err := NewWatcher(watcherConfig, db, musicBrainzLibrary)
 	if err != nil {
 		return Application{}, err
 	}
-	differ := NewDiffer(db)
-	googleSheets, err := NewGoogleSheets(ctx, spreadsheetID, credentialsFile)
+	differConfig := config.Diff
+	googleSheetsConfig := config.GoogleSheets
+	googleSheets, err := NewGoogleSheets(ctx, googleSheetsConfig)
 	if err != nil {
 		return Application{}, err
 	}
+	differ := NewDiffer(db, differConfig, googleSheets)
 	application := NewApplication(db, watcher, differ, googleSheets)
 	return application, nil
 }
@@ -47,14 +52,23 @@ type Application struct {
 	DB      DB
 	Watcher Watcher
 	Differ  Differ
-	Sheets  *GoogleSheets
+	Sheets  GoogleSheets
+}
+
+type Config struct {
+	WatcherConfig `envDefault:""`
+	Db            DbConfig           `envPrefix:"DB_" envDefault:""`
+	Diff          DifferConfig       `envPrefix:"DIFF_" envDefault:""`
+	Discogs       DiscogsConfig      `envPrefix:"DISCOGS_" envDefault:""`
+	MusicBrainz   MusicBrainzConfig  `envPrefix:"MUSIC_BRAINZ_" envDefault:""`
+	GoogleSheets  GoogleSheetsConfig `envPrefix:"GOOGLE_SHEETS_" envDefault:""`
 }
 
 func NewApplication(
 	db DB,
 	watcher Watcher,
 	differ Differ,
-	sheets *GoogleSheets,
+	sheets GoogleSheets,
 ) Application {
 	return Application{
 		DB:      db,
@@ -65,24 +79,13 @@ func NewApplication(
 }
 
 func InitializeApplication(ctx context.Context) (Application, error) {
-	connectionString := ConnectionString(os.Getenv("PGCONNECTION"))
-	if connectionString == "" {
-		return Application{}, fmt.Errorf("provide a connection string PGCONNECTION")
-	}
-	musicbrainzToken := MusicBrainzToken(os.Getenv("MUSICBRAINZ_TOKEN"))
-	if musicbrainzToken == "" {
-		return Application{}, fmt.Errorf("provide a MUSICBRAINZ_TOKEN")
-	}
-	root := RootPath(os.Getenv("ROOT"))
-	if root == "" {
-		return Application{}, fmt.Errorf("provide a ROOT")
+	var config Config
+	err := env.ParseWithOptions(&config, env.Options{RequiredIfNoDef: true, UseFieldNameByDefault: true})
+	if err != nil {
+		return Application{}, fmt.Errorf("parsing env variables error: %w", err)
 	}
 
-	credentialsFile := GoogleCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-
-	spreadsheetID := SpreadsheetID(os.Getenv("GOOGLE_SHEETS_SPREADSHEET_ID"))
-
-	app, err := initializeApp(ctx, connectionString, musicbrainzToken, root, spreadsheetID, credentialsFile)
+	app, err := initializeApp(ctx, config)
 	if err != nil {
 		return Application{}, fmt.Errorf("app initialization error: %w", err)
 	}

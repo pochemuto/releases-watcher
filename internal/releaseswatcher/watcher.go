@@ -26,7 +26,7 @@ func init() {
 
 type WatcherConfig struct {
 	RootPath     string
-	ExcludedPath string
+	ExcludedPath string `envDefault:""`
 }
 
 type Library interface {
@@ -58,7 +58,7 @@ func (w Watcher) UpdateActualLibrary(ctx context.Context) error {
 	}
 
 	// Filter out excluded artists
-	filteredArtists := []string{}
+	var filteredArtists []string
 	for _, artist := range artists {
 		if !contains(excludedArtists, artist) {
 			filteredArtists = append(filteredArtists, artist)
@@ -102,9 +102,15 @@ func (w Watcher) UpdateLocalLibrary(ctx context.Context) error {
 	filenames := make(chan string)
 	tags := make(chan tag.Metadata)
 
-	var filesnamesCount atomic.Int32
+	var filenameCount atomic.Int32
 	var processedCount atomic.Int32
-	go Scan(ctx, string(w.root), filenames, &filesnamesCount)
+	go func() {
+		err := Scan(ctx, string(w.root), w.excludedPath,
+			filenames, &filenameCount)
+		if err != nil {
+			log.Errorf("Error scanning directory: %v", err)
+		}
+	}()
 
 	var wg sync.WaitGroup
 
@@ -164,7 +170,7 @@ func (w Watcher) UpdateLocalLibrary(ctx context.Context) error {
 		if err != nil {
 			log.Errorf("Failed to write to db: %v", err)
 		}
-		log.Tracef("Read %d/%d %s - %s", processedCount.Load(), filesnamesCount.Load(),
+		log.Tracef("Read %d/%d %s - %s", processedCount.Load(), filenameCount.Load(),
 			album.Artist, album.Name)
 	}
 

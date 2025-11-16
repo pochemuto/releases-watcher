@@ -86,7 +86,9 @@ func run(ctx context.Context) {
 					*newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind, newAlbum.ID)
 			}
 		}
-		app.Sheets.UpdateReleases(ctx, newAlbums)
+		if err = app.Sheets.UpdateReleases(ctx, newAlbums); err != nil {
+			log.Errorf("Error updating releases: %v", err)
+		}
 		log.Infof("Found %d new albums", albumCount)
 	}
 	log.Info("Done")

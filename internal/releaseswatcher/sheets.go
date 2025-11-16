@@ -13,23 +13,16 @@ import (
 )
 
 const (
-	settingsSheetName    = "Настройки"
-	headerRange          = settingsSheetName + "!A1:B1"
-	settingsDataRange    = settingsSheetName + "!A2:B"
-	defaultHeaderTitle   = "Artist"
-	defaultHeaderNotice  = "Notification"
-	DefaultCredentialsFN = "google-credentials.json"
+	settingsSheetName   = "Настройки"
+	headerRange         = settingsSheetName + "!A1:B1"
+	settingsDataRange   = settingsSheetName + "!A2:B"
+	defaultHeaderTitle  = "Artist"
+	defaultHeaderNotice = "Notification"
 
 	releasesSheetName  = "Релизы"
 	releasesRange      = releasesSheetName + "!A1:E"
 	releasesClearRange = releasesSheetName + "!A:E"
 )
-
-type SpreadsheetID string
-
-const DefaultSpreadsheetID SpreadsheetID = "1j-xtIRVbdzguaBoaW3l52VMmVJmOtP4lggR7O3yW9E8"
-
-type GoogleCredentialsFile string
 
 type NotificationSetting string
 
@@ -65,36 +58,34 @@ type ArtistSetting struct {
 	Notification NotificationSetting
 }
 
-type GoogleSheets struct {
-	service       *sheets.Service
-	spreadsheetID SpreadsheetID
+type GoogleSheetsConfig struct {
+	CredentialsFile string `envDefault:"google-credentials.json"`
+	SpreadsheetID   string `envDefault:"1j-xtIRVbdzguaBoaW3l52VMmVJmOtP4lggR7O3yW9E8"`
 }
 
-func NewGoogleSheets(ctx context.Context, spreadsheetID SpreadsheetID, credentialsFile GoogleCredentialsFile) (*GoogleSheets, error) {
-	if credentialsFile == "" {
-		credentialsFile = GoogleCredentialsFile(DefaultCredentialsFN)
-	}
+type GoogleSheets struct {
+	service       *sheets.Service
+	spreadsheetID string
+}
 
+func NewGoogleSheets(ctx context.Context, config GoogleSheetsConfig) (GoogleSheets, error) {
 	opts := []option.ClientOption{
 		option.WithScopes(sheets.SpreadsheetsScope),
 	}
-	if credentialsFile != "" {
-		if _, err := os.Stat(string(credentialsFile)); err != nil {
-			return nil, fmt.Errorf("check credentials file: %w", err)
+	if config.CredentialsFile != "" {
+		if _, err := os.Stat(config.CredentialsFile); err != nil {
+			return GoogleSheets{}, fmt.Errorf("check credentials file: %w", err)
 		}
-		opts = append(opts, option.WithCredentialsFile(string(credentialsFile)))
+		opts = append(opts, option.WithCredentialsFile(config.CredentialsFile))
 	}
 
 	service, err := sheets.NewService(ctx, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create sheets client: %w", err)
+		return GoogleSheets{}, fmt.Errorf("failed to create sheets client: %w", err)
 	}
-	if spreadsheetID == "" {
-		spreadsheetID = DefaultSpreadsheetID
-	}
-	return &GoogleSheets{
+	return GoogleSheets{
 		service:       service,
-		spreadsheetID: spreadsheetID,
+		spreadsheetID: config.SpreadsheetID,
 	}, nil
 }
 
