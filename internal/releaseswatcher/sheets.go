@@ -296,6 +296,7 @@ func (g *GoogleSheets) UpdateReleases(ctx context.Context, releases []MatchedAlb
 		return fmt.Errorf("update releases range: %w", err)
 	}
 
+	log.Infof("updated releases sheet: https://docs.google.com/spreadsheets/d/%s", g.spreadsheetID)
 	return nil
 }
 
