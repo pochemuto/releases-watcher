@@ -19,8 +19,8 @@ const (
 	defaultHeaderNotice = "Notification"
 
 	releasesSheetName  = "Релизы"
-	releasesRange      = releasesSheetName + "!A1:F"
-	releasesClearRange = releasesSheetName + "!A:F"
+	releasesRange      = releasesSheetName + "!A1:H"
+	releasesClearRange = releasesSheetName + "!A:H"
 )
 
 type NotificationSetting string
@@ -200,47 +200,82 @@ func (g *GoogleSheets) UpdateArtistsInSettings(ctx context.Context, artists []st
 	return nil
 }
 
+type releaseState struct {
+	inActual bool
+	inLocal  bool
+}
+
+var releaseStates = map[releaseState]string{
+	releaseState{true, true}:   "В коллекции",
+	releaseState{true, false}:  "Новый",
+	releaseState{false, true}:  "Не найден",
+	releaseState{false, false}: "Ошибка",
+}
+
 func (g *GoogleSheets) UpdateReleases(ctx context.Context, releases []MatchedAlbum) error {
 	rows := make([][]any, 0, len(releases)+1)
-	rows = append(rows, []any{"Артист", "Альбом", "Тип", "Год", "Ссылка", "В коллекции"})
+	rows = append(rows, []any{"Артист", "Альбом", "Локальный артист", "Локальный альбом", "Тип", "Год", "Ссылка", "В коллекции"})
 
+	sort.SliceStable(releases, func(i, j int) bool {
+		a := releases[i]
+		b := releases[j]
+
+		aArtist, aYear, aName, aHasActual := releaseSortKey(a)
+		bArtist, bYear, bName, bHasActual := releaseSortKey(b)
+
+		if aArtist != bArtist {
+			return aArtist < bArtist
+		}
+
+		if aHasActual && bHasActual && aYear != bYear {
+			return aYear < bYear
+		}
+
+		if aName != bName {
+			return aName < bName
+		}
+
+		if aHasActual != bHasActual {
+			return aHasActual
+		}
+
+		return false
+	})
 	for _, release := range releases {
 		actual := release.Actual
-		if actual == nil {
-			continue
-		}
 		artist := ""
-		if actual.Artist != nil {
-			artist = *actual.Artist
-		}
-
 		album := ""
-		if actual.Name != nil {
-			album = *actual.Name
-		}
-
 		kind := ""
-		if actual.Kind != nil {
-			kind = *actual.Kind
-		}
-
-		var year any
-		if actual.Year != nil {
-			year = int(*actual.Year)
-		} else {
-			year = ""
-		}
-
+		year := ""
 		link := ""
-		if actual.Url != nil {
-			link = *actual.Url
-		}
-		inCollection := "FALSE"
-		if release.Local != nil {
-			inCollection = "TRUE"
+		if actual != nil {
+			if actual.Artist != nil {
+				artist = *actual.Artist
+			}
+			if actual.Name != nil {
+				album = *actual.Name
+			}
+			if actual.Kind != nil {
+				kind = *actual.Kind
+			}
+			if actual.Year != nil {
+				year = fmt.Sprintf("%d", *actual.Year)
+			}
+			if actual.Url != nil {
+				link = *actual.Url
+			}
 		}
 
-		rows = append(rows, []any{artist, album, kind, year, link, inCollection})
+		localArtist := ""
+		localAlbum := ""
+		if release.Local != nil {
+			localArtist = release.Local.Artist
+			localAlbum = release.Local.Name
+		}
+
+		inCollection := releaseStates[releaseState{inActual: release.Actual != nil, inLocal: release.Local != nil}]
+
+		rows = append(rows, []any{artist, album, localArtist, localAlbum, kind, year, link, inCollection})
 	}
 
 	clearRequest := &sheets.ClearValuesRequest{}
@@ -262,6 +297,29 @@ func (g *GoogleSheets) UpdateReleases(ctx context.Context, releases []MatchedAlb
 	}
 
 	return nil
+}
+
+func releaseSortKey(m MatchedAlbum) (artist string, year int32, name string, hasActual bool) {
+	if m.Actual != nil {
+		if m.Actual.Artist != nil {
+			artist = *m.Actual.Artist
+		}
+		if m.Actual.Year != nil {
+			year = *m.Actual.Year
+		}
+		if m.Actual.Name != nil {
+			name = *m.Actual.Name
+		}
+		hasActual = true
+		return
+	}
+
+	if m.Local != nil {
+		artist = m.Local.Artist
+		name = m.Local.Name
+	}
+
+	return
 }
 
 func (g *GoogleSheets) readSettings(ctx context.Context) ([]any, []ArtistSetting, error) {
