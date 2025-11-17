@@ -70,11 +70,11 @@ func (d Differ) Diff(ctx context.Context) ([]sqlc.ActualAlbumPublished, error) {
 		excludedAlbumMap[normalized] = true
 	}
 
-	// Create a set of normalized excluded artists for faster lookup.
-	excludedArtistMap := make(map[string]bool)
-	for _, artist := range excludedArtists {
-		normalized := normalizeString(artist)
-		excludedArtistMap[normalized] = true
+	settings, err := d.sheets.GetArtistSettings(ctx)
+	artistSettings := make(map[string]NotificationSetting)
+	for _, setting := range settings {
+		normalized := normalizeString(setting.ArtistName)
+		artistSettings[normalized] = setting.Notification
 	}
 
 	log.Infof("Filtering albums released since %d", d.cutoffYear)
@@ -96,11 +96,21 @@ func (d Differ) Diff(ctx context.Context) ([]sqlc.ActualAlbumPublished, error) {
 			log.Tracef("Album is excluded, skipping: %v", normalizedAlbum)
 			continue
 		}
-		if _, artistOk := excludedArtistMap[normalizedArtist]; artistOk {
-			log.Tracef("Artist is excluded, skipping: %v", normalizedArtist)
-			continue
+		if setting, artistOk := artistSettings[normalizedArtist]; artistOk {
+			if setting == NotificationDoNotTrack {
+				log.Tracef("Artist is excluded, skipping: %v", normalizedArtist)
+				continue
+			}
+			kind, err := KindOf(&actual)
+			if err != nil {
+				log.Errorf("error getting album kind: %v", err)
+				continue
+			}
+			if !setting.IsReleaseInScope(kind) {
+				log.Tracef("Release type %v is not in scope of %v", kind, setting)
+				continue
+			}
 		}
-
 		result = append(result, actual)
 	}
 

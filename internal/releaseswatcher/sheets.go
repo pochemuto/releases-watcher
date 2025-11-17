@@ -29,9 +29,34 @@ type NotificationSetting string
 const (
 	NotificationAllReleases NotificationSetting = "Все релизы"
 	NotificationAlbumsAndEP NotificationSetting = "Альбомы и EP"
-	NotificationDoNotTrack  NotificationSetting = "Не отслеживать"
 	NotificationAlbumsOnly  NotificationSetting = "Альбомы"
+	NotificationDoNotTrack  NotificationSetting = "Не отслеживать"
 )
+
+var notificationScope = map[NotificationSetting]map[Kind]bool{
+	NotificationAllReleases: {
+		KindAlbum:   true,
+		KindEP:      true,
+		KindSingle:  true,
+		KindUnknown: true,
+	},
+	NotificationAlbumsAndEP: {
+		KindAlbum:   true,
+		KindEP:      true,
+		KindSingle:  false,
+		KindUnknown: false,
+	},
+	NotificationAlbumsOnly: {
+		KindAlbum:   true,
+		KindEP:      false,
+		KindSingle:  false,
+		KindUnknown: false,
+	},
+}
+
+func (n NotificationSetting) IsReleaseInScope(kind Kind) bool {
+	return notificationScope[n][kind]
+}
 
 func (n NotificationSetting) String() string {
 	return string(n)
