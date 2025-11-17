@@ -19,8 +19,8 @@ const (
 	defaultHeaderNotice = "Notification"
 
 	releasesSheetName  = "Релизы"
-	releasesRange      = releasesSheetName + "!A1:H"
-	releasesClearRange = releasesSheetName + "!A:H"
+	releasesRange      = releasesSheetName + "!A1:I"
+	releasesClearRange = releasesSheetName + "!A:I"
 )
 
 type NotificationSetting string
@@ -214,7 +214,8 @@ var releaseStates = map[releaseState]string{
 
 func (g *GoogleSheets) UpdateReleases(ctx context.Context, releases []MatchedAlbum) error {
 	rows := make([][]any, 0, len(releases)+1)
-	rows = append(rows, []any{"Артист", "Альбом", "Локальный артист", "Локальный альбом", "Тип", "Год", "Ссылка", "В коллекции"})
+	rows = append(rows, []any{"Артист общий", "Артист", "Альбом", "Локальный артист", "Локальный альбом", "Тип", "Год",
+		"Ссылка", "В коллекции"})
 
 	sort.SliceStable(releases, func(i, j int) bool {
 		a := releases[i]
@@ -275,7 +276,11 @@ func (g *GoogleSheets) UpdateReleases(ctx context.Context, releases []MatchedAlb
 
 		inCollection := releaseStates[releaseState{inActual: release.Actual != nil, inLocal: release.Local != nil}]
 
-		rows = append(rows, []any{artist, album, localArtist, localAlbum, kind, year, link, inCollection})
+		commonArtist := artist
+		if commonArtist == "" {
+			commonArtist = localArtist
+		}
+		rows = append(rows, []any{commonArtist, artist, album, localArtist, localAlbum, kind, year, link, inCollection})
 	}
 
 	clearRequest := &sheets.ClearValuesRequest{}
