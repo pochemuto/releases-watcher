@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pochemuto/releases-watcher/sqlc"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
@@ -20,8 +19,8 @@ const (
 	defaultHeaderNotice = "Notification"
 
 	releasesSheetName  = "Релизы"
-	releasesRange      = releasesSheetName + "!A1:E"
-	releasesClearRange = releasesSheetName + "!A:E"
+	releasesRange      = releasesSheetName + "!A1:F"
+	releasesClearRange = releasesSheetName + "!A:F"
 )
 
 type NotificationSetting string
@@ -201,39 +200,47 @@ func (g *GoogleSheets) UpdateArtistsInSettings(ctx context.Context, artists []st
 	return nil
 }
 
-func (g *GoogleSheets) UpdateReleases(ctx context.Context, releases []sqlc.ActualAlbumPublished) error {
+func (g *GoogleSheets) UpdateReleases(ctx context.Context, releases []MatchedAlbum) error {
 	rows := make([][]any, 0, len(releases)+1)
-	rows = append(rows, []any{"Артист", "Альбом", "Тип", "Год", "Ссылка"})
+	rows = append(rows, []any{"Артист", "Альбом", "Тип", "Год", "Ссылка", "В коллекции"})
 
 	for _, release := range releases {
+		actual := release.Actual
+		if actual == nil {
+			continue
+		}
 		artist := ""
-		if release.Artist != nil {
-			artist = *release.Artist
+		if actual.Artist != nil {
+			artist = *actual.Artist
 		}
 
 		album := ""
-		if release.Name != nil {
-			album = *release.Name
+		if actual.Name != nil {
+			album = *actual.Name
 		}
 
 		kind := ""
-		if release.Kind != nil {
-			kind = *release.Kind
+		if actual.Kind != nil {
+			kind = *actual.Kind
 		}
 
 		var year any
-		if release.Year != nil {
-			year = int(*release.Year)
+		if actual.Year != nil {
+			year = int(*actual.Year)
 		} else {
 			year = ""
 		}
 
 		link := ""
-		if release.Url != nil {
-			link = *release.Url
+		if actual.Url != nil {
+			link = *actual.Url
+		}
+		inCollection := "FALSE"
+		if release.Local != nil {
+			inCollection = "TRUE"
 		}
 
-		rows = append(rows, []any{artist, album, kind, year, link})
+		rows = append(rows, []any{artist, album, kind, year, link, inCollection})
 	}
 
 	clearRequest := &sheets.ClearValuesRequest{}

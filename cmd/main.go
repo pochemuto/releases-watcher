@@ -6,7 +6,6 @@ import (
 	"flag"
 	"io/fs"
 	"os/signal"
-	"sort"
 	"syscall"
 
 	"github.com/joho/godotenv"
@@ -66,30 +65,24 @@ func run(ctx context.Context) {
 	}
 
 	if *diff {
-		newAlbums, err := differ.Diff(ctx)
+		matched, err := differ.Matched(ctx)
 		if err != nil {
 			log.Fatalf("error making diff: %v", err)
 		}
-		albumCount := 0
-		// Sort newAlbums by Year in descending order
-		sort.Slice(newAlbums, func(i, j int) bool {
-			if *newAlbums[i].Artist != *newAlbums[j].Artist {
-				return *newAlbums[i].Artist < *newAlbums[j].Artist
-			}
-			return *newAlbums[i].Year < *newAlbums[j].Year
-		})
-		for _, newAlbum := range newAlbums {
-			if *newAlbum.Kind == "Album" {
-				albumCount++
+		releaseCount := 0
+		for _, release := range matched {
+			releaseCount++
+			if release.Local == nil {
+				actual := release.Actual
 				log.Infof("New album: [%v] %s - %s (%s)  https://musicbrainz.org/release/%v",
-					*newAlbum.Year,
-					*newAlbum.Artist, *newAlbum.Name, *newAlbum.Kind, newAlbum.ID)
+					actual.Year,
+					*actual.Artist, *actual.Name, *actual.Kind, actual.ID)
 			}
 		}
-		if err = app.Sheets.UpdateReleases(ctx, newAlbums); err != nil {
+		if err = app.Sheets.UpdateReleases(ctx, matched); err != nil {
 			log.Errorf("Error updating releases: %v", err)
 		}
-		log.Infof("Found %d new albums", albumCount)
+		log.Infof("Found %d new albums", releaseCount)
 	}
 	log.Info("Done")
 }
